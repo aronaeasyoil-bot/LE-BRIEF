@@ -6,6 +6,7 @@ import { SignJWT, jwtVerify } from "jose";
 import type { User } from "../../drizzle/schema";
 import * as db from "../db";
 import { ENV } from "./env";
+import { buildLocalAdminUser, isLocalAdminOpenId } from "./localAdmin";
 import type {
   ExchangeTokenRequest,
   ExchangeTokenResponse,
@@ -263,6 +264,10 @@ class SDKServer {
 
     if (!session) {
       throw ForbiddenError("Invalid session cookie");
+    }
+
+    if (isLocalAdminOpenId(session.openId)) {
+      return buildLocalAdminUser();
     }
 
     if (session.openId.startsWith(CRON_OPEN_ID_PREFIX)) {

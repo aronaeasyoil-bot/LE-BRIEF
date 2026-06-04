@@ -38,3 +38,8 @@ pnpm db:push
 - Site Vercel: `https://le-brief-media.vercel.app`
 - Les variables Vercel doivent etre definies pour `production`, `preview` et `development`
 
+## Administration
+
+- L'acces editorial passe par `https://le-brief-media.vercel.app/admin/login`
+- Le lien `Admin` n'apparait que pour une session admin valide
+- Les identifiants admin locaux sont controles par `ADMIN_EMAIL`, `ADMIN_PASSWORD` et `ADMIN_NAME`

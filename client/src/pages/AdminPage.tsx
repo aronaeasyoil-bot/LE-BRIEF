@@ -4,7 +4,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import Navbar from "@/components/Navbar";
-import { getLoginUrl } from "@/const";
+import { getAdminLoginUrl } from "@/const";
 import { toast } from "sonner";
 import {
   BadgeCheck,
@@ -245,7 +245,7 @@ export default function AdminPage() {
         <main className="pt-[140px] container text-center py-20">
           <h1 className="text-3xl font-bold text-foreground mb-4">{t.nav.admin}</h1>
           <p className="text-muted-foreground mb-6">{admin.authPrompt}</p>
-          <a href={getLoginUrl()} className="inline-flex px-6 py-3 bg-primary text-primary-foreground rounded-md font-medium">
+          <a href={getAdminLoginUrl()} className="inline-flex px-6 py-3 bg-primary text-primary-foreground rounded-md font-medium">
             {admin.signIn}
           </a>
         </main>
