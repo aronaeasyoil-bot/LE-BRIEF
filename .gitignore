@@ -113,3 +113,5 @@ verification-screenshots/
 
 # Manus version file (auto-generated, not part of source)
 client/public/__manus__/version.json
+
+.vercel
