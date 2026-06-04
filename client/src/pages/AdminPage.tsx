@@ -4,6 +4,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import Navbar from "@/components/Navbar";
+import AdminFileUploadField from "@/components/AdminFileUploadField";
 import { getAdminLoginUrl } from "@/const";
 import { toast } from "sonner";
 import {
@@ -93,8 +94,10 @@ const adminText = {
     language: "Langue",
     order: "Ordre",
     issue: "Numéro",
-    coverUrl: "Couverture URL",
-    pdfUrl: "PDF URL",
+    image: "Image",
+    video: "Video",
+    coverUrl: "Couverture",
+    pdfUrl: "Document PDF",
     noMagazine: "Aucun magazine publié pour le moment.",
     requiredTitle: "Ajoutez au moins un titre.",
     edit: "Modifier",
@@ -148,8 +151,10 @@ const adminText = {
     language: "Language",
     order: "Order",
     issue: "Issue",
-    coverUrl: "Cover URL",
-    pdfUrl: "PDF URL",
+    image: "Image",
+    video: "Video",
+    coverUrl: "Cover image",
+    pdfUrl: "PDF document",
     noMagazine: "No magazine published yet.",
     requiredTitle: "Add at least one title.",
     edit: "Edit",
@@ -203,8 +208,10 @@ const adminText = {
     language: "اللغة",
     order: "الترتيب",
     issue: "العدد",
-    coverUrl: "رابط الغلاف",
-    pdfUrl: "رابط PDF",
+    image: "صورة",
+    video: "فيديو",
+    coverUrl: "صورة الغلاف",
+    pdfUrl: "ملف PDF",
     noMagazine: "لا توجد مجلة منشورة حتى الآن.",
     requiredTitle: "أضف عنوانًا واحدًا على الأقل.",
     edit: "تعديل",
@@ -545,8 +552,14 @@ function ArticlesTab({ title, categorySlug }: { title: string; categorySlug?: st
                 ))}
               </select>
             </Field>
-            <Field label="Image URL">
-              <input className={inputClass} value={formData.imageUrl} onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })} placeholder="https://..." />
+            <Field label={admin.image}>
+              <AdminFileUploadField
+                accept="image/*"
+                bucket="images"
+                kind="image"
+                value={formData.imageUrl}
+                onChange={(imageUrl) => setFormData({ ...formData, imageUrl })}
+              />
             </Field>
             <Field label={admin.author}>
               <input className={inputClass} value={formData.authorName} onChange={(e) => setFormData({ ...formData, authorName: e.target.value })} />
@@ -740,8 +753,14 @@ function EventsTab() {
             <Field label={admin.location}>
               <input className={inputClass} value={formData.location} onChange={(e) => setFormData({ ...formData, location: e.target.value })} />
             </Field>
-            <Field label="Image URL">
-              <input className={inputClass} value={formData.imageUrl} onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })} placeholder="https://..." />
+            <Field label={admin.image}>
+              <AdminFileUploadField
+                accept="image/*"
+                bucket="images"
+                kind="image"
+                value={formData.imageUrl}
+                onChange={(imageUrl) => setFormData({ ...formData, imageUrl })}
+              />
             </Field>
           </div>
           <label className="mt-5 flex items-center gap-2 text-sm text-foreground">
@@ -895,11 +914,23 @@ function AdsTab({ title, description }: { title: string; description: string }) 
             </Field>
           </div>
           <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-4">
-            <Field label="Image URL">
-              <input className={inputClass} value={formData.imageUrl} onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })} placeholder="https://..." />
+            <Field label={admin.image}>
+              <AdminFileUploadField
+                accept="image/*"
+                bucket="images"
+                kind="image"
+                value={formData.imageUrl}
+                onChange={(imageUrl) => setFormData({ ...formData, imageUrl })}
+              />
             </Field>
-            <Field label="Video URL">
-              <input className={inputClass} value={formData.videoUrl} onChange={(e) => setFormData({ ...formData, videoUrl: e.target.value })} placeholder="https://..." />
+            <Field label={admin.video}>
+              <AdminFileUploadField
+                accept="video/*"
+                bucket="videos"
+                kind="video"
+                value={formData.videoUrl}
+                onChange={(videoUrl) => setFormData({ ...formData, videoUrl })}
+              />
             </Field>
             <Field label="Lien">
               <input className={inputClass} value={formData.linkUrl} onChange={(e) => setFormData({ ...formData, linkUrl: e.target.value })} placeholder="https://..." />
@@ -1088,10 +1119,22 @@ function MagazinesTab() {
               <input type="date" className={inputClass} value={formData.publishedAt} onChange={(e) => setFormData({ ...formData, publishedAt: e.target.value })} />
             </Field>
             <Field label={admin.coverUrl}>
-              <input className={inputClass} value={formData.coverImageUrl} onChange={(e) => setFormData({ ...formData, coverImageUrl: e.target.value })} placeholder="https://..." />
+              <AdminFileUploadField
+                accept="image/*"
+                bucket="images"
+                kind="image"
+                value={formData.coverImageUrl}
+                onChange={(coverImageUrl) => setFormData({ ...formData, coverImageUrl })}
+              />
             </Field>
             <Field label={admin.pdfUrl}>
-              <input className={inputClass} value={formData.pdfUrl} onChange={(e) => setFormData({ ...formData, pdfUrl: e.target.value })} placeholder="https://..." />
+              <AdminFileUploadField
+                accept=".pdf,application/pdf"
+                bucket="documents"
+                kind="document"
+                value={formData.pdfUrl}
+                onChange={(pdfUrl) => setFormData({ ...formData, pdfUrl })}
+              />
             </Field>
           </div>
           <FormActions editing={Boolean(editingId)} pending={createMutation.isPending || updateMutation.isPending} onCancel={resetForm} />

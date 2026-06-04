@@ -1,5 +1,6 @@
 import { COOKIE_NAME, ONE_YEAR_MS } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
+import { uploadAdminFile } from "./_core/fileUpload";
 import { sdk } from "./_core/sdk";
 import { systemRouter } from "./_core/systemRouter";
 import { getLocalAdminName, getLocalAdminOpenId, isLocalAdminConfigured, verifyLocalAdminCredentials } from "./_core/localAdmin";
@@ -82,6 +83,22 @@ export const appRouter = router({
     list: publicProcedure.query(async () => {
       return getAllCategories();
     }),
+  }),
+
+  uploads: router({
+    file: adminProcedure
+      .input(
+        z.object({
+          bucket: z.enum(["images", "documents", "videos"]),
+          fileName: z.string().min(1),
+          mimeType: z.string().min(1),
+          dataBase64: z.string().min(1),
+          size: z.number().positive(),
+        })
+      )
+      .mutation(async ({ input }) => {
+        return uploadAdminFile(input);
+      }),
   }),
 
   articles: router({
