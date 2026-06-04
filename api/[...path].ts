@@ -14,7 +14,7 @@ registerStorageProxy(app);
 registerOAuthRoutes(app);
 
 app.use(
-  "/api/trpc",
+  ["/api/trpc", "/trpc"],
   createExpressMiddleware({
     router: appRouter,
     createContext,

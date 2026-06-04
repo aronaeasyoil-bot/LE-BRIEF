@@ -9,7 +9,7 @@ function getQueryParam(req: any, key: string): string | undefined {
 }
 
 export function registerOAuthRoutes(app: any) {
-  app.get("/api/oauth/callback", async (req: any, res: any) => {
+  app.get(["/api/oauth/callback", "/oauth/callback"], async (req: any, res: any) => {
     const code = getQueryParam(req, "code");
     const state = getQueryParam(req, "state");
 
