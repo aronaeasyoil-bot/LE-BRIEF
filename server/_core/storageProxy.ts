@@ -1,8 +1,10 @@
 import { ENV } from "./env";
 
 export function registerStorageProxy(app: any) {
-  app.get(["/manus-storage/*", "/api/manus-storage/*"], async (req: any, res: any) => {
-    const key = (req.params as Record<string, string>)[0];
+  app.get(["/api/manus-storage", "/manus-storage/*", "/api/manus-storage/*"], async (req: any, res: any) => {
+    const wildcardKey = (req.params as Record<string, string>)[0];
+    const queryPath = typeof req.query?.path === "string" ? req.query.path : undefined;
+    const key = wildcardKey || queryPath;
     if (!key) {
       res.status(400).send("Missing storage key");
       return;

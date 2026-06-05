@@ -34,6 +34,48 @@ const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
   return next({ ctx });
 });
 
+function normalizeOptionalText(value?: null | string) {
+  if (typeof value !== "string") {
+    return undefined;
+  }
+
+  const trimmed = value.trim();
+  return trimmed || undefined;
+}
+
+function normalizeArticleRecord(article: any) {
+  return {
+    ...article,
+    authorName: normalizeOptionalText(article.authorName),
+    imageUrl: normalizeOptionalText(article.imageUrl),
+  };
+}
+
+function normalizeEventRecord(event: any) {
+  return {
+    ...event,
+    imageUrl: normalizeOptionalText(event.imageUrl),
+    location: normalizeOptionalText(event.location),
+  };
+}
+
+function normalizeMagazineRecord(magazine: any) {
+  return {
+    ...magazine,
+    coverImageUrl: normalizeOptionalText(magazine.coverImageUrl),
+    pdfUrl: normalizeOptionalText(magazine.pdfUrl),
+  };
+}
+
+function normalizeAdvertisementRecord(advertisement: any) {
+  return {
+    ...advertisement,
+    imageUrl: normalizeOptionalText(advertisement.imageUrl),
+    linkUrl: normalizeOptionalText(advertisement.linkUrl),
+    videoUrl: normalizeOptionalText(advertisement.videoUrl),
+  };
+}
+
 export const appRouter = router({
   system: systemRouter,
   auth: router({
@@ -118,25 +160,26 @@ export const appRouter = router({
     featured: publicProcedure
       .input(z.object({}).optional())
       .query(async () => {
-        return getFeaturedArticles(4);
+        return (await getFeaturedArticles(4)).map(normalizeArticleRecord);
       }),
     published: publicProcedure
       .input(z.object({}).optional())
       .query(async () => {
-        return getPublishedArticles();
+        return (await getPublishedArticles()).map(normalizeArticleRecord);
       }),
     byCategory: publicProcedure
       .input(z.object({ categoryId: z.number() }))
       .query(async ({ input }) => {
-        return getArticlesByCategory(input.categoryId);
+        return (await getArticlesByCategory(input.categoryId)).map(normalizeArticleRecord);
       }),
     byId: publicProcedure
       .input(z.object({ id: z.number() }))
       .query(async ({ input }) => {
-        return getArticleById(input.id);
+        const article = await getArticleById(input.id);
+        return article ? normalizeArticleRecord(article) : undefined;
       }),
     all: adminProcedure.query(async () => {
-      return getAllArticles();
+      return (await getAllArticles()).map(normalizeArticleRecord);
     }),
     create: adminProcedure
       .input(z.object({
@@ -160,7 +203,9 @@ export const appRouter = router({
       .mutation(async ({ input }) => {
         const id = await createArticle({
           ...input,
+          authorName: normalizeOptionalText(input.authorName),
           featured: input.featured ?? false,
+          imageUrl: normalizeOptionalText(input.imageUrl),
           published: input.published ?? false,
           language: input.language ?? "all",
           publishedAt: input.publishedAt ?? new Date(),
@@ -188,7 +233,11 @@ export const appRouter = router({
       }))
       .mutation(async ({ input }) => {
         const { id, ...data } = input;
-        await updateArticle(id, data);
+        await updateArticle(id, {
+          ...data,
+          authorName: normalizeOptionalText(data.authorName),
+          imageUrl: normalizeOptionalText(data.imageUrl),
+        });
         return { success: true };
       }),
     delete: adminProcedure
@@ -201,10 +250,10 @@ export const appRouter = router({
 
   events: router({
     published: publicProcedure.query(async () => {
-      return getPublishedEvents();
+      return (await getPublishedEvents()).map(normalizeEventRecord);
     }),
     all: adminProcedure.query(async () => {
-      return getAllEvents();
+      return (await getAllEvents()).map(normalizeEventRecord);
     }),
     create: adminProcedure
       .input(z.object({
@@ -222,6 +271,8 @@ export const appRouter = router({
       .mutation(async ({ input }) => {
         const id = await createEvent({
           ...input,
+          imageUrl: normalizeOptionalText(input.imageUrl),
+          location: normalizeOptionalText(input.location),
           published: input.published ?? false,
         });
         return { id };
@@ -242,7 +293,11 @@ export const appRouter = router({
       }))
       .mutation(async ({ input }) => {
         const { id, ...data } = input;
-        await updateEvent(id, data);
+        await updateEvent(id, {
+          ...data,
+          imageUrl: normalizeOptionalText(data.imageUrl),
+          location: normalizeOptionalText(data.location),
+        });
         return { success: true };
       }),
     delete: adminProcedure
@@ -272,12 +327,12 @@ export const appRouter = router({
     list: publicProcedure.query(async () => {
       const db = await (await import("./db")).getDb();
       if (!db) return [];
-      return db.select().from(magazines).orderBy(desc(magazines.publishedAt)).limit(10);
+      return (await db.select().from(magazines).orderBy(desc(magazines.publishedAt)).limit(10)).map(normalizeMagazineRecord);
     }),
     all: adminProcedure.query(async () => {
       const db = await (await import("./db")).getDb();
       if (!db) return [];
-      return db.select().from(magazines).orderBy(desc(magazines.publishedAt));
+      return (await db.select().from(magazines).orderBy(desc(magazines.publishedAt))).map(normalizeMagazineRecord);
     }),
     create: adminProcedure
       .input(z.object({
@@ -294,7 +349,8 @@ export const appRouter = router({
         return createMagazine({
           ...input,
           publishedAt: input.publishedAt ?? new Date(),
-          coverImageUrl: input.coverImageUrl ?? "",
+          coverImageUrl: normalizeOptionalText(input.coverImageUrl) ?? "",
+          pdfUrl: normalizeOptionalText(input.pdfUrl) ?? "",
         } as any);
       }),
     update: adminProcedure
@@ -311,7 +367,11 @@ export const appRouter = router({
       .mutation(async ({ input }) => {
         const { updateMagazine } = await import("./db");
         const { id, ...data } = input;
-        return updateMagazine(id, data as any);
+        return updateMagazine(id, {
+          ...data,
+          coverImageUrl: normalizeOptionalText(data.coverImageUrl),
+          pdfUrl: normalizeOptionalText(data.pdfUrl),
+        } as any);
       }),
     delete: adminProcedure
       .input(z.object({ id: z.number() }))
@@ -325,12 +385,12 @@ export const appRouter = router({
     active: publicProcedure.query(async () => {
       const db = await (await import("./db")).getDb();
       if (!db) return [];
-      return db.select().from(advertisements).where(eq(advertisements.active, true)).orderBy(asc(advertisements.sortOrder));
+      return (await db.select().from(advertisements).where(eq(advertisements.active, true)).orderBy(asc(advertisements.sortOrder))).map(normalizeAdvertisementRecord);
     }),
     all: adminProcedure.query(async () => {
       const db = await (await import("./db")).getDb();
       if (!db) return [];
-      return db.select().from(advertisements).orderBy(asc(advertisements.sortOrder));
+      return (await db.select().from(advertisements).orderBy(asc(advertisements.sortOrder))).map(normalizeAdvertisementRecord);
     }),
     create: adminProcedure
       .input(z.object({
@@ -349,7 +409,12 @@ export const appRouter = router({
       .mutation(async ({ input }) => {
         const db = await (await import("./db")).getDb();
         if (!db) throw new Error("Database not available");
-        const result = await db.insert(advertisements).values(input as any);
+        const result = await db.insert(advertisements).values({
+          ...input,
+          imageUrl: normalizeOptionalText(input.imageUrl),
+          linkUrl: normalizeOptionalText(input.linkUrl),
+          videoUrl: normalizeOptionalText(input.videoUrl),
+        } as any);
         return result;
       }),
     update: adminProcedure
@@ -371,7 +436,12 @@ export const appRouter = router({
         const db = await (await import("./db")).getDb();
         if (!db) throw new Error("Database not available");
         const { id, ...data } = input;
-        return db.update(advertisements).set(data as any).where(eq(advertisements.id, id));
+        return db.update(advertisements).set({
+          ...data,
+          imageUrl: normalizeOptionalText(data.imageUrl),
+          linkUrl: normalizeOptionalText(data.linkUrl),
+          videoUrl: normalizeOptionalText(data.videoUrl),
+        } as any).where(eq(advertisements.id, id));
       }),
     delete: adminProcedure
       .input(z.object({ id: z.number() }))

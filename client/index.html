@@ -6,13 +6,20 @@
     <meta
       name="viewport"
       content="width=device-width, initial-scale=1.0, maximum-scale=1" />
+    <meta
+      name="theme-color"
+      content="#0a0a0a" />
+    <!-- LE_BRIEF_SEO_START -->
     <title>LE BRIEF | Energy, Economy & Events</title>
     <meta
       name="description"
       content="Strategic intelligence on energy, economy, investment, and events across Africa and the Middle East." />
     <meta
-      name="theme-color"
-      content="#0a0a0a" />
+      name="robots"
+      content="index,follow,max-image-preview:large" />
+    <meta
+      name="googlebot"
+      content="index,follow,max-image-preview:large" />
     <link
       rel="canonical"
       href="https://www.lebrief.energy/" />
@@ -46,13 +53,24 @@
     <meta
       name="twitter:image"
       content="https://www.lebrief.energy/media/lebrief-share-preview.jpeg" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "Organization",
+        "name": "LE BRIEF",
+        "url": "https://www.lebrief.energy",
+        "logo": "https://www.lebrief.energy/media/lebrief-share-preview.jpeg",
+        "email": "contact@lebrief.energy"
+      }
+    </script>
+    <!-- LE_BRIEF_SEO_END -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:wght@400;500;600;700;800;900&family=Noto+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet" />
   </head>
 
   <body>
-    <div id="root"></div>
+    <div id="root"><!-- LE_BRIEF_APP_FALLBACK --></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 

@@ -225,6 +225,26 @@ const adminText = {
 
 const getAdminText = (lang: string) => adminText[lang as keyof typeof adminText] || adminText.fr;
 
+const mediaLinkText = {
+  ar: {
+    document: "رابط ملف PDF",
+    image: "رابط الصورة",
+  },
+  en: {
+    document: "PDF link",
+    image: "Image URL",
+  },
+  fr: {
+    document: "Lien document PDF",
+    image: "Lien image",
+  },
+} as const;
+
+const getMediaLinkLabel = (lang: string, kind: "document" | "image") => {
+  const labels = mediaLinkText[lang as keyof typeof mediaLinkText] || mediaLinkText.fr;
+  return labels[kind];
+};
+
 const dateInputValue = (value?: Date | string | null) => {
   if (!value) return "";
   const date = new Date(value);
@@ -366,6 +386,25 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
 }
 
 const inputClass = "w-full rounded-md border border-border bg-input px-3 py-2 text-sm text-foreground";
+
+function DirectUrlInput({
+  onChange,
+  value,
+}: {
+  onChange: (value: string) => void;
+  value: string;
+}) {
+  return (
+    <input
+      className={inputClass}
+      dir="ltr"
+      placeholder="https://..."
+      value={value}
+      onBlur={(event) => onChange(event.target.value.trim())}
+      onChange={(event) => onChange(event.target.value)}
+    />
+  );
+}
 
 function ArticlesTab({ title, categorySlug }: { title: string; categorySlug?: string }) {
   const { lang } = useLanguage();
@@ -564,9 +603,15 @@ function ArticlesTab({ title, categorySlug }: { title: string; categorySlug?: st
                 onChange={(imageUrl) => setFormData({ ...formData, imageUrl })}
               />
             </Field>
+            <Field label={getMediaLinkLabel(lang, "image")}>
+              <DirectUrlInput value={formData.imageUrl} onChange={(imageUrl) => setFormData({ ...formData, imageUrl })} />
+            </Field>
             <Field label={admin.author}>
               <input className={inputClass} value={formData.authorName} onChange={(e) => setFormData({ ...formData, authorName: e.target.value })} />
             </Field>
+          </div>
+
+          <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
             <Field label={admin.language}>
               <select className={inputClass} value={formData.language} onChange={(e) => setFormData({ ...formData, language: e.target.value as any })}>
                 <option value="all">Toutes</option>
@@ -1137,6 +1182,11 @@ function MagazinesTab() {
                 onChange={(coverImageUrl) => setFormData({ ...formData, coverImageUrl })}
               />
             </Field>
+            <Field label={getMediaLinkLabel(lang, "image")}>
+              <DirectUrlInput value={formData.coverImageUrl} onChange={(coverImageUrl) => setFormData({ ...formData, coverImageUrl })} />
+            </Field>
+          </div>
+          <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
             <Field label={admin.pdfUrl}>
               <AdminFileUploadField
                 accept=".pdf,application/pdf"
@@ -1145,6 +1195,9 @@ function MagazinesTab() {
                 value={formData.pdfUrl}
                 onChange={(pdfUrl) => setFormData({ ...formData, pdfUrl })}
               />
+            </Field>
+            <Field label={getMediaLinkLabel(lang, "document")}>
+              <DirectUrlInput value={formData.pdfUrl} onChange={(pdfUrl) => setFormData({ ...formData, pdfUrl })} />
             </Field>
           </div>
           <FormActions editing={Boolean(editingId)} pending={createMutation.isPending || updateMutation.isPending} onCancel={resetForm} />
