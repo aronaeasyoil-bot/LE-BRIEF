@@ -3,12 +3,13 @@ import { Link, useLocation } from "wouter";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Language } from "@/lib/i18n";
+import { CONTACT_EMAIL, CONTACT_LOCATION, getContactMailto } from "@/lib/site";
 import { Menu, X, Globe, ChevronDown } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import SearchBar from "./SearchBar";
 
 const languages: { code: Language; label: string; flag: string }[] = [
-  { code: "fr", label: "Français", flag: "FR" },
+  { code: "fr", label: "Francais", flag: "FR" },
   { code: "en", label: "English", flag: "EN" },
   { code: "ar", label: "العربية", flag: "AR" },
 ];
@@ -39,21 +40,25 @@ export default function Navbar() {
   ];
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-md border-b border-border">
-      {/* Top bar */}
+    <header className="fixed top-0 left-0 right-0 z-50 border-b border-border bg-background/95 backdrop-blur-md">
       <div className="border-b border-border/50">
-        <div className="container flex items-center justify-between h-10 text-xs text-muted-foreground">
-          <span className="hidden sm:block">Dubai - Sénégal | magazine.lebrief@gmail.com</span>
+        <div className="container flex h-10 items-center justify-between text-xs text-muted-foreground">
+          <a
+            href={getContactMailto()}
+            className="hidden transition-colors hover:text-foreground sm:block"
+          >
+            {CONTACT_LOCATION} | {CONTACT_EMAIL}
+          </a>
           <div className="flex items-center gap-4">
-            {/* Language Selector */}
             <div className="relative">
               <button
                 onClick={() => setLangOpen(!langOpen)}
-                className="flex items-center gap-1 hover:text-foreground transition-colors"
+                className="flex items-center gap-1 transition-colors hover:text-foreground"
+                type="button"
               >
-                <Globe className="w-3.5 h-3.5" />
-                <span>{languages.find(l => l.code === lang)?.flag}</span>
-                <ChevronDown className="w-3 h-3" />
+                <Globe className="h-3.5 w-3.5" />
+                <span>{languages.find((item) => item.code === lang)?.flag}</span>
+                <ChevronDown className="h-3 w-3" />
               </button>
               <AnimatePresence>
                 {langOpen && (
@@ -61,15 +66,23 @@ export default function Navbar() {
                     initial={{ opacity: 0, y: -5 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -5 }}
-                    className={`absolute top-full mt-1 ${rtl ? 'left-0' : 'right-0'} bg-card border border-border rounded-md shadow-lg overflow-hidden min-w-[120px]`}
+                    className={`absolute top-full mt-1 min-w-[120px] overflow-hidden rounded-md border border-border bg-card shadow-lg ${
+                      rtl ? "left-0" : "right-0"
+                    }`}
                   >
-                    {languages.map((l) => (
+                    {languages.map((item) => (
                       <button
-                        key={l.code}
-                        onClick={() => { setLang(l.code); setLangOpen(false); }}
-                        className={`w-full px-3 py-2 text-left hover:bg-secondary transition-colors ${lang === l.code ? 'text-gold bg-secondary' : ''}`}
+                        key={item.code}
+                        onClick={() => {
+                          setLang(item.code);
+                          setLangOpen(false);
+                        }}
+                        className={`w-full px-3 py-2 text-left transition-colors hover:bg-secondary ${
+                          lang === item.code ? "bg-secondary text-gold" : ""
+                        }`}
+                        type="button"
                       >
-                        {l.label}
+                        {item.label}
                       </button>
                     ))}
                   </motion.div>
@@ -77,7 +90,7 @@ export default function Navbar() {
               </AnimatePresence>
             </div>
             {user?.role === "admin" && (
-              <Link href="/admin" className="text-gold hover:text-accent transition-colors">
+              <Link href="/admin" className="text-gold transition-colors hover:text-accent">
                 {t.nav.admin}
               </Link>
             )}
@@ -85,47 +98,46 @@ export default function Navbar() {
         </div>
       </div>
 
-      {/* Main nav */}
-      <div className="container flex items-center justify-between h-16 gap-4">
-        <Link href="/" className="flex items-center gap-2 flex-shrink-0">
-          <span className="text-2xl font-bold font-sans tracking-tight">
+      <div className="container flex h-16 items-center justify-between gap-4">
+        <Link href="/" className="flex flex-shrink-0 items-center gap-2">
+          <span className="font-sans text-2xl font-bold tracking-tight">
             <span className="text-foreground">LE </span>
             <span className="text-primary">BRIEF</span>
           </span>
         </Link>
 
-        {/* Search Bar - Desktop */}
-        <div className="hidden md:flex flex-1 max-w-xs">
+        <div className="hidden max-w-xs flex-1 md:flex">
           <SearchBar />
         </div>
 
-        {/* Desktop nav */}
-        <nav className="hidden lg:flex items-center gap-1">
+        <nav className="hidden items-center gap-1 lg:flex">
           {navItems.slice(0, 8).map((item) => (
             <Link
               key={item.href}
               href={item.href}
-              className={`px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+              className={`rounded-md px-3 py-2 text-sm font-medium transition-colors ${
                 location === item.href
-                  ? "text-gold bg-secondary"
-                  : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
+                  ? "bg-secondary text-gold"
+                  : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground"
               }`}
             >
               {item.label}
             </Link>
           ))}
-          {/* More dropdown for remaining items */}
-          <div className="relative group">
-            <button className="px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground rounded-md transition-colors flex items-center gap-1">
+          <div className="group relative">
+            <button
+              className="flex items-center gap-1 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+              type="button"
+            >
               <span>+</span>
-              <ChevronDown className="w-3 h-3" />
+              <ChevronDown className="h-3 w-3" />
             </button>
-            <div className="absolute top-full right-0 mt-1 bg-card border border-border rounded-md shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all min-w-[180px] py-1">
+            <div className="invisible absolute right-0 top-full mt-1 min-w-[180px] rounded-md border border-border bg-card py-1 opacity-0 shadow-xl transition-all group-hover:visible group-hover:opacity-100">
               {navItems.slice(8).map((item) => (
                 <Link
                   key={item.href}
                   href={item.href}
-                  className="block px-4 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                  className="block px-4 py-2 text-sm text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
                 >
                   {item.label}
                 </Link>
@@ -134,58 +146,56 @@ export default function Navbar() {
           </div>
         </nav>
 
-        {/* Mobile search button */}
         <button
           onClick={() => setSearchOpen(!searchOpen)}
-          className="md:hidden p-2 hover:bg-secondary rounded-md transition-colors"
+          className="rounded-md p-2 transition-colors hover:bg-secondary md:hidden"
+          type="button"
         >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
         </button>
 
-        {/* Mobile menu button */}
         <button
           onClick={() => setMobileOpen(!mobileOpen)}
-          className="lg:hidden p-2 hover:bg-secondary rounded-md transition-colors"
+          className="rounded-md p-2 transition-colors hover:bg-secondary lg:hidden"
+          type="button"
         >
-          {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+          {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
         </button>
       </div>
 
-      {/* Mobile search */}
       <AnimatePresence>
         {searchOpen && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
-            className="md:hidden border-t border-border bg-card/50 px-4 py-3"
+            className="border-t border-border bg-card/50 px-4 py-3 md:hidden"
           >
             <SearchBar />
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Mobile menu */}
       <AnimatePresence>
         {mobileOpen && (
           <motion.div
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            className="lg:hidden border-t border-border bg-background overflow-hidden"
+            className="overflow-hidden border-t border-border bg-background lg:hidden"
           >
-            <nav className="container py-4 space-y-1">
+            <nav className="container space-y-1 py-4">
               {navItems.map((item) => (
                 <Link
                   key={item.href}
                   href={item.href}
                   onClick={() => setMobileOpen(false)}
-                  className={`block px-4 py-3 rounded-md text-sm font-medium transition-colors ${
+                  className={`block rounded-md px-4 py-3 text-sm font-medium transition-colors ${
                     location === item.href
-                      ? "text-gold bg-secondary"
-                      : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
+                      ? "bg-secondary text-gold"
+                      : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground"
                   }`}
                 >
                   {item.label}

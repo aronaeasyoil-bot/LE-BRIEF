@@ -2,6 +2,8 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import WhatsAppButton from "@/components/WhatsAppButton";
+import { usePageMeta } from "@/hooks/usePageMeta";
+import { CONTACT_EMAIL, CONTACT_LOCATION, CONTACT_PHONE_DISPLAY, CONTACT_PHONE_SECONDARY, PREVIEW_IMAGE_PATH, SITE_DESCRIPTION, getContactMailto } from "@/lib/site";
 import { motion } from "framer-motion";
 import { Target, Eye, Users, Globe, Award, Zap, MessageCircle, Mail, Phone, MapPin } from "lucide-react";
 
@@ -83,6 +85,13 @@ const aboutContent = {
 export default function AboutPage() {
   const { lang, rtl } = useLanguage();
   const content = aboutContent[lang];
+
+  usePageMeta({
+    description: SITE_DESCRIPTION,
+    image: PREVIEW_IMAGE_PATH,
+    path: "/about",
+    title: content.title,
+  });
 
   return (
     <div className="min-h-screen bg-background" dir={rtl ? "rtl" : "ltr"}>
@@ -207,7 +216,7 @@ export default function AboutPage() {
             className="rounded-lg overflow-hidden border border-border mb-16"
           >
             <img
-              src="/manus-storage/office-reception_c87f87db.jpeg"
+              src={PREVIEW_IMAGE_PATH}
               alt="Le Brief Office"
               className="w-full h-64 md:h-96 object-cover"
             />
@@ -225,14 +234,14 @@ export default function AboutPage() {
               <div className="flex items-start gap-3">
                 <Phone className="w-5 h-5 text-gold mt-0.5" />
                 <div>
-                  <p className="text-foreground text-sm">+971 55 442 0793</p>
-                  <p className="text-foreground text-sm">054 333 8520</p>
+                  <p className="text-foreground text-sm">{CONTACT_PHONE_DISPLAY}</p>
+                  <p className="text-foreground text-sm">{CONTACT_PHONE_SECONDARY}</p>
                 </div>
               </div>
               <div className="flex items-start gap-3">
                 <Mail className="w-5 h-5 text-gold mt-0.5" />
                 <div>
-                  <p className="text-foreground text-sm">magazine.lebrief@gmail.com</p>
+                  <a href={getContactMailto()} className="text-foreground text-sm transition-colors hover:text-gold">{CONTACT_EMAIL}</a>
                 </div>
               </div>
               <div className="flex items-start gap-3">

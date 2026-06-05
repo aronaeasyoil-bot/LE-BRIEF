@@ -1,22 +1,45 @@
 import { useLanguage } from "@/contexts/LanguageContext";
+import { shareLink } from "@/lib/share";
+import { getSiteUrl } from "@/lib/site";
 import { motion } from "framer-motion";
 import { Download, Share2 } from "lucide-react";
+import { toast } from "sonner";
 
 interface KioskProps {
   magazines: any[];
 }
 
+function getMagazineTitle(magazine: any, lang: string) {
+  return lang === "ar" ? magazine.titleAr || magazine.titleFr : lang === "en" ? magazine.titleEn || magazine.titleFr : magazine.titleFr;
+}
+
 export default function Kiosk({ magazines }: KioskProps) {
-  const { t, lang } = useLanguage();
+  const { lang } = useLanguage();
 
   if (!magazines || magazines.length === 0) {
     return null;
   }
 
   const latestMagazine = magazines[0];
+  const downloadLabel = lang === "fr" ? "Telecharger PDF" : lang === "ar" ? "تحميل PDF" : "Download PDF";
+  const shareLabel = lang === "fr" ? "Partager" : lang === "ar" ? "مشاركة" : "Share";
+  const previousIssuesLabel = lang === "fr" ? "Numeros precedents" : lang === "ar" ? "الاعداد السابقة" : "Previous issues";
+  const issueLabel = lang === "fr" ? "NUMERO" : lang === "ar" ? "العدد" : "ISSUE";
+
+  const handleShare = async () => {
+    const result = await shareLink("native", {
+      text: latestMagazine.titleFr || latestMagazine.titleEn || latestMagazine.titleAr,
+      title: getMagazineTitle(latestMagazine, lang),
+      url: getSiteUrl(latestMagazine.pdfUrl),
+    });
+
+    if (result === "copied") {
+      toast.success(lang === "fr" ? "Lien du magazine copie" : lang === "ar" ? "تم نسخ رابط المجلة" : "Magazine link copied");
+    }
+  };
 
   return (
-    <section className="py-8 border-b border-border">
+    <section className="border-b border-border py-8">
       <div className="container">
         <motion.div
           initial={{ opacity: 0, x: -20 }}
@@ -24,45 +47,41 @@ export default function Kiosk({ magazines }: KioskProps) {
           viewport={{ once: true }}
           className="mb-6"
         >
-          <h2 className="text-2xl md:text-3xl font-bold font-serif">Kiosque</h2>
+          <h2 className="font-serif text-2xl font-bold md:text-3xl">Kiosque</h2>
         </motion.div>
 
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           whileInView={{ opacity: 1, scale: 1 }}
           viewport={{ once: true }}
-          className="grid grid-cols-1 md:grid-cols-3 gap-8 items-center"
+          className="grid grid-cols-1 items-center gap-8 md:grid-cols-3"
         >
-          {/* Magazine Cover */}
           <div className="md:col-span-1">
-            <div className="relative group cursor-pointer">
+            <div className="group relative cursor-pointer">
               {latestMagazine.coverImageUrl ? (
                 <img
                   src={latestMagazine.coverImageUrl}
                   alt="Magazine Cover"
-                  className="w-full rounded-lg shadow-xl group-hover:shadow-2xl group-hover:shadow-gold/20 transition-all"
+                  className="w-full rounded-lg shadow-xl transition-all group-hover:shadow-2xl group-hover:shadow-gold/20"
                 />
               ) : (
-                <div className="w-full aspect-[3/4] bg-gradient-to-br from-gold to-primary rounded-lg shadow-xl flex items-center justify-center">
-                  <span className="text-white font-bold text-xl">LE BRIEF</span>
+                <div className="flex aspect-[3/4] w-full items-center justify-center rounded-lg bg-gradient-to-br from-gold to-primary shadow-xl">
+                  <span className="text-xl font-bold text-white">LE BRIEF</span>
                 </div>
               )}
-              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors rounded-lg" />
+              <div className="absolute inset-0 rounded-lg bg-black/0 transition-colors group-hover:bg-black/20" />
             </div>
           </div>
 
-          {/* Magazine Info */}
-          <div className="md:col-span-2 space-y-6">
+          <div className="space-y-6 md:col-span-2">
             <div>
-              <p className="text-gold text-sm font-bold mb-2">NUMÉRO {latestMagazine.issueNumber}</p>
-              <h3 className="text-2xl md:text-3xl font-bold font-serif text-foreground mb-3">
-                {lang === "ar"
-                  ? latestMagazine.titleAr
-                  : lang === "en"
-                    ? latestMagazine.titleEn
-                    : latestMagazine.titleFr}
+              <p className="mb-2 text-sm font-bold text-gold">
+                {issueLabel} {latestMagazine.issueNumber}
+              </p>
+              <h3 className="mb-3 font-serif text-2xl font-bold text-foreground md:text-3xl">
+                {getMagazineTitle(latestMagazine, lang)}
               </h3>
-              <p className="text-muted-foreground text-sm">
+              <p className="text-sm text-muted-foreground">
                 {new Date(latestMagazine.publishedAt).toLocaleDateString(
                   lang === "ar" ? "ar-SA" : lang === "en" ? "en-US" : "fr-FR",
                   { year: "numeric", month: "long", day: "numeric" }
@@ -70,47 +89,50 @@ export default function Kiosk({ magazines }: KioskProps) {
               </p>
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-3">
+            <div className="flex flex-col gap-3 sm:flex-row">
               <a
                 href={latestMagazine.pdfUrl}
                 download
-                className="px-6 py-3 bg-primary text-primary-foreground font-medium rounded-lg hover:bg-primary/90 transition-colors flex items-center gap-2 justify-center"
+                className="flex items-center justify-center gap-2 rounded-lg bg-primary px-6 py-3 font-medium text-primary-foreground transition-colors hover:bg-primary/90"
               >
-                <Download className="w-4 h-4" />
-                Télécharger PDF
+                <Download className="h-4 w-4" />
+                {downloadLabel}
               </a>
-              <button className="px-6 py-3 border border-gold text-gold font-medium rounded-lg hover:bg-gold/10 transition-colors flex items-center gap-2 justify-center">
-                <Share2 className="w-4 h-4" />
-                Partager
+              <button
+                type="button"
+                onClick={handleShare}
+                className="flex items-center justify-center gap-2 rounded-lg border border-gold px-6 py-3 font-medium text-gold transition-colors hover:bg-gold/10"
+              >
+                <Share2 className="h-4 w-4" />
+                {shareLabel}
               </button>
             </div>
 
-            {/* Other Issues */}
             {magazines.length > 1 && (
               <div>
-                <p className="text-sm font-semibold text-foreground mb-3">Numéros précédents</p>
-                <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
-                  {magazines.slice(1, 5).map((mag, i) => (
+                <p className="mb-3 text-sm font-semibold text-foreground">{previousIssuesLabel}</p>
+                <div className="grid grid-cols-3 gap-3 sm:grid-cols-4">
+                  {magazines.slice(1, 5).map((magazine, index) => (
                     <motion.a
-                      key={mag.id}
-                      href={mag.pdfUrl}
+                      key={magazine.id}
+                      href={magazine.pdfUrl}
                       download
                       initial={{ opacity: 0, y: 10 }}
                       whileInView={{ opacity: 1, y: 0 }}
                       viewport={{ once: true }}
-                      transition={{ delay: i * 0.05 }}
+                      transition={{ delay: index * 0.05 }}
                       className="group"
                     >
-                      <div className="relative rounded-lg overflow-hidden border border-border group-hover:border-gold transition-colors">
-                        {mag.coverImageUrl ? (
+                      <div className="relative overflow-hidden rounded-lg border border-border transition-colors group-hover:border-gold">
+                        {magazine.coverImageUrl ? (
                           <img
-                            src={mag.coverImageUrl}
-                            alt={`Issue ${mag.issueNumber}`}
-                            className="w-full aspect-[3/4] object-cover group-hover:scale-105 transition-transform"
+                            src={magazine.coverImageUrl}
+                            alt={`Issue ${magazine.issueNumber}`}
+                            className="aspect-[3/4] w-full object-cover transition-transform group-hover:scale-105"
                           />
                         ) : (
-                          <div className="w-full aspect-[3/4] bg-gradient-to-br from-gold/50 to-primary/50 flex items-center justify-center text-xs font-bold text-white">
-                            N°{mag.issueNumber}
+                          <div className="flex aspect-[3/4] w-full items-center justify-center bg-gradient-to-br from-gold/50 to-primary/50 text-xs font-bold text-white">
+                            N{magazine.issueNumber}
                           </div>
                         )}
                       </div>

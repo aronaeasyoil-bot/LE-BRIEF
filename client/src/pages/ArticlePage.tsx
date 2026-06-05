@@ -5,8 +5,11 @@ import Footer from "@/components/Footer";
 import WhatsAppButton from "@/components/WhatsAppButton";
 import { useParams, Link } from "wouter";
 import { motion } from "framer-motion";
-import { ArrowLeft, Share2, Facebook, Twitter, Linkedin, Clock, User } from "lucide-react";
+import { ArrowLeft, Share2, Facebook, Twitter, Linkedin, Clock, User, Copy, MessageCircle } from "lucide-react";
 import { toast } from "sonner";
+import { shareLink, type SharePlatform } from "@/lib/share";
+import { PREVIEW_IMAGE_URL, SITE_DESCRIPTION, getSiteUrl } from "@/lib/site";
+import { usePageMeta } from "@/hooks/usePageMeta";
 
 function getLocalizedField(item: any, field: string, lang: string): string {
   const key = `${field}${lang.charAt(0).toUpperCase() + lang.slice(1)}`;
@@ -16,33 +19,48 @@ function getLocalizedField(item: any, field: string, lang: string): string {
 export default function ArticlePage() {
   const { t, lang, rtl } = useLanguage();
   const params = useParams<{ id: string }>();
-  const articleId = parseInt(params.id || "0");
+  const articleId = parseInt(params.id || "0", 10);
   const { data: article, isLoading } = trpc.articles.byId.useQuery({ id: articleId }, { enabled: articleId > 0 });
   const { data: related } = trpc.articles.published.useQuery({});
 
-  const handleShare = (platform: string) => {
-    const url = window.location.href;
-    const title = article ? getLocalizedField(article, "title", lang) : "";
-    let shareUrl = "";
-    switch (platform) {
-      case "facebook": shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`; break;
-      case "twitter": shareUrl = `https://twitter.com/intent/tweet?url=${encodeURIComponent(url)}&text=${encodeURIComponent(title)}`; break;
-      case "linkedin": shareUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}`; break;
-      default: navigator.clipboard.writeText(url); toast.success("Link copied!"); return;
+  const articleTitle = article ? getLocalizedField(article, "title", lang) : "";
+  const articleExcerpt = article ? getLocalizedField(article, "excerpt", lang) : "";
+  const articleUrl = article ? getSiteUrl(`/article/${article.id}`) : getSiteUrl(`/article/${articleId || ""}`);
+
+  usePageMeta({
+    description: articleExcerpt || SITE_DESCRIPTION,
+    image: article?.imageUrl || PREVIEW_IMAGE_URL,
+    path: article ? `/article/${article.id}` : `/article/${articleId}`,
+    title: articleTitle || t.article.readMore,
+    type: "article",
+  });
+
+  const handleShare = async (platform: SharePlatform) => {
+    try {
+      const result = await shareLink(platform, {
+        text: articleExcerpt || SITE_DESCRIPTION,
+        title: articleTitle,
+        url: articleUrl,
+      });
+
+      if (result === "copied") {
+        toast.success(lang === "fr" ? "Lien copie" : lang === "ar" ? "تم نسخ الرابط" : "Link copied");
+      }
+    } catch {
+      toast.error(lang === "fr" ? "Le partage a echoue" : lang === "ar" ? "فشلت المشاركة" : "Share failed");
     }
-    window.open(shareUrl, "_blank", "width=600,height=400");
   };
 
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background" dir={rtl ? "rtl" : "ltr"}>
         <Navbar />
-        <div className="pt-[140px] container">
-          <div className="animate-pulse space-y-4 max-w-3xl mx-auto">
-            <div className="h-8 bg-secondary rounded w-3/4" />
-            <div className="h-64 bg-secondary rounded" />
-            <div className="h-4 bg-secondary rounded w-full" />
-            <div className="h-4 bg-secondary rounded w-5/6" />
+        <div className="container pt-[140px]">
+          <div className="mx-auto max-w-3xl animate-pulse space-y-4">
+            <div className="h-8 w-3/4 rounded bg-secondary" />
+            <div className="h-64 rounded bg-secondary" />
+            <div className="h-4 w-full rounded bg-secondary" />
+            <div className="h-4 w-5/6 rounded bg-secondary" />
           </div>
         </div>
       </div>
@@ -54,87 +72,132 @@ export default function ArticlePage() {
   return (
     <div className="min-h-screen bg-background" dir={rtl ? "rtl" : "ltr"}>
       <Navbar />
-      <main className="pt-[140px] pb-16">
-        <div className="container max-w-4xl mx-auto">
-          {/* Back button */}
-          <Link href="/" className="inline-flex items-center gap-2 text-muted-foreground hover:text-gold transition-colors mb-8 text-sm">
-            <ArrowLeft className="w-4 h-4" />
+      <main className="pb-16 pt-[140px]">
+        <div className="container mx-auto max-w-4xl">
+          <Link href="/" className="mb-8 inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-gold">
+            <ArrowLeft className="h-4 w-4" />
             {t.common.back}
           </Link>
 
-          <motion.article
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-          >
-            {/* Title */}
-            <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-foreground mb-6 leading-tight">
-              {getLocalizedField(article, "title", lang)}
+          <motion.article initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+            <h1 className="mb-6 text-3xl font-bold leading-tight text-foreground md:text-4xl lg:text-5xl">
+              {articleTitle}
             </h1>
 
-            {/* Meta */}
-            <div className="flex flex-wrap items-center gap-4 mb-8 text-sm text-muted-foreground">
+            <div className="mb-8 flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
               <div className="flex items-center gap-2">
-                <User className="w-4 h-4 text-gold" />
+                <User className="h-4 w-4 text-gold" />
                 <span>{article.authorName}</span>
               </div>
               <div className="flex items-center gap-2">
-                <Clock className="w-4 h-4 text-gold" />
-                <span>{article.publishedAt ? new Date(article.publishedAt).toLocaleDateString(lang === "ar" ? "ar-SA" : lang === "en" ? "en-US" : "fr-FR", { day: "numeric", month: "long", year: "numeric" }) : ""}</span>
+                <Clock className="h-4 w-4 text-gold" />
+                <span>
+                  {article.publishedAt
+                    ? new Date(article.publishedAt).toLocaleDateString(
+                        lang === "ar" ? "ar-SA" : lang === "en" ? "en-US" : "fr-FR",
+                        { day: "numeric", month: "long", year: "numeric" }
+                      )
+                    : ""}
+                </span>
               </div>
             </div>
 
-            {/* Image */}
             {article.imageUrl && (
-              <div className="aspect-[16/9] rounded-lg overflow-hidden mb-8">
-                <img src={article.imageUrl} alt="" className="w-full h-full object-cover" />
+              <div className="mb-8 aspect-[16/9] overflow-hidden rounded-lg">
+                <img src={article.imageUrl} alt={articleTitle} className="h-full w-full object-cover" />
               </div>
             )}
 
-            {/* Excerpt */}
-            <p className="text-lg text-muted-foreground italic border-l-4 border-gold pl-4 mb-8">
-              {getLocalizedField(article, "excerpt", lang)}
+            <p className="mb-8 border-l-4 border-gold pl-4 text-lg italic text-muted-foreground">
+              {articleExcerpt}
             </p>
 
-            {/* Content */}
-            <div className="prose prose-invert max-w-none text-foreground/90 leading-relaxed text-base whitespace-pre-line mb-10">
+            <div className="prose prose-invert mb-10 max-w-none whitespace-pre-line text-base leading-relaxed text-foreground/90">
               {getLocalizedField(article, "content", lang)}
             </div>
 
-            {/* Share */}
             <div className="border-t border-border pt-6">
-              <h4 className="text-sm font-semibold text-foreground mb-3 font-sans">{t.article.share}</h4>
-              <div className="flex gap-3">
-                <button onClick={() => handleShare("facebook")} className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center text-muted-foreground hover:text-blue-500 transition-colors">
-                  <Facebook className="w-4 h-4" />
+              <h4 className="mb-3 font-sans text-sm font-semibold text-foreground">{t.article.share}</h4>
+              <div className="flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  onClick={() => handleShare("native")}
+                  className="flex h-10 w-10 items-center justify-center rounded-full bg-secondary text-muted-foreground transition-colors hover:text-gold"
+                  title={t.article.share}
+                  aria-label={t.article.share}
+                >
+                  <Share2 className="h-4 w-4" />
                 </button>
-                <button onClick={() => handleShare("twitter")} className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center text-muted-foreground hover:text-sky-400 transition-colors">
-                  <Twitter className="w-4 h-4" />
+                <button
+                  type="button"
+                  onClick={() => handleShare("facebook")}
+                  className="flex h-10 w-10 items-center justify-center rounded-full bg-secondary text-muted-foreground transition-colors hover:text-blue-500"
+                  title="Facebook"
+                  aria-label="Facebook"
+                >
+                  <Facebook className="h-4 w-4" />
                 </button>
-                <button onClick={() => handleShare("linkedin")} className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center text-muted-foreground hover:text-blue-600 transition-colors">
-                  <Linkedin className="w-4 h-4" />
+                <button
+                  type="button"
+                  onClick={() => handleShare("twitter")}
+                  className="flex h-10 w-10 items-center justify-center rounded-full bg-secondary text-muted-foreground transition-colors hover:text-sky-400"
+                  title="X"
+                  aria-label="X"
+                >
+                  <Twitter className="h-4 w-4" />
                 </button>
-                <button onClick={() => handleShare("copy")} className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center text-muted-foreground hover:text-gold transition-colors">
-                  <Share2 className="w-4 h-4" />
+                <button
+                  type="button"
+                  onClick={() => handleShare("linkedin")}
+                  className="flex h-10 w-10 items-center justify-center rounded-full bg-secondary text-muted-foreground transition-colors hover:text-blue-600"
+                  title="LinkedIn"
+                  aria-label="LinkedIn"
+                >
+                  <Linkedin className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleShare("whatsapp")}
+                  className="flex h-10 w-10 items-center justify-center rounded-full bg-secondary text-muted-foreground transition-colors hover:text-green-500"
+                  title="WhatsApp"
+                  aria-label="WhatsApp"
+                >
+                  <MessageCircle className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleShare("copy")}
+                  className="flex h-10 w-10 items-center justify-center rounded-full bg-secondary text-muted-foreground transition-colors hover:text-gold"
+                  title={lang === "fr" ? "Copier le lien" : lang === "ar" ? "نسخ الرابط" : "Copy link"}
+                  aria-label={lang === "fr" ? "Copier le lien" : lang === "ar" ? "نسخ الرابط" : "Copy link"}
+                >
+                  <Copy className="h-4 w-4" />
                 </button>
               </div>
             </div>
           </motion.article>
 
-          {/* Related Articles */}
           {related && related.length > 0 && (
-            <section className="mt-16 pt-10 border-t border-border">
-              <h3 className="text-2xl font-bold text-foreground mb-8">{t.article.related}</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {related.filter(a => a.id !== article.id).slice(0, 3).map((rel) => (
-                  <Link key={rel.id} href={`/article/${rel.id}`} className="group">
-                    <div className="aspect-[16/10] rounded-lg overflow-hidden mb-3">
-                      <img src={rel.imageUrl || "/manus-storage/journalist-studio_a6c3b8b9.jpeg"} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                    </div>
-                    <h4 className="text-sm font-semibold text-foreground group-hover:text-gold transition-colors line-clamp-2">
-                      {getLocalizedField(rel, "title", lang)}
-                    </h4>
-                  </Link>
-                ))}
+            <section className="mt-16 border-t border-border pt-10">
+              <h3 className="mb-8 text-2xl font-bold text-foreground">{t.article.related}</h3>
+              <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+                {related
+                  .filter((item) => item.id !== article.id)
+                  .slice(0, 3)
+                  .map((item) => (
+                    <Link key={item.id} href={`/article/${item.id}`} className="group">
+                      <div className="mb-3 aspect-[16/10] overflow-hidden rounded-lg">
+                        <img
+                          src={item.imageUrl || "/manus-storage/journalist-studio_a6c3b8b9.jpeg"}
+                          alt={getLocalizedField(item, "title", lang)}
+                          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                        />
+                      </div>
+                      <h4 className="line-clamp-2 text-sm font-semibold text-foreground transition-colors group-hover:text-gold">
+                        {getLocalizedField(item, "title", lang)}
+                      </h4>
+                    </Link>
+                  ))}
               </div>
             </section>
           )}

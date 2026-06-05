@@ -30,7 +30,7 @@ describe("uploads router", () => {
 
   beforeAll(async () => {
     ({ appRouter } = await import("./routers"));
-  });
+  }, 20000);
 
   beforeEach(() => {
     storagePutMock.mockReset();

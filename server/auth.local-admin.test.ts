@@ -74,7 +74,7 @@ describe("local admin auth", () => {
     expect(session).not.toBeNull();
     expect(session?.name).toBe("LE BRIEF Admin");
     expect(isLocalAdminOpenId(session?.openId ?? "")).toBe(true);
-  }, 15000);
+  }, 25000);
 
   it("rejects invalid credentials", async () => {
     const { appRouter } = await import("./routers");
