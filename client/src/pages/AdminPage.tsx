@@ -100,6 +100,7 @@ const adminText = {
     pdfUrl: "Document PDF",
     noMagazine: "Aucun magazine publié pour le moment.",
     requiredTitle: "Ajoutez au moins un titre.",
+    requiredMagazineDocument: "Ajoutez le document PDF du magazine.",
     edit: "Modifier",
     delete: "Supprimer",
     confirmDelete: "Confirmer la suppression ?",
@@ -157,6 +158,7 @@ const adminText = {
     pdfUrl: "PDF document",
     noMagazine: "No magazine published yet.",
     requiredTitle: "Add at least one title.",
+    requiredMagazineDocument: "Add the magazine PDF document.",
     edit: "Edit",
     delete: "Delete",
     confirmDelete: "Confirm deletion?",
@@ -214,6 +216,7 @@ const adminText = {
     pdfUrl: "ملف PDF",
     noMagazine: "لا توجد مجلة منشورة حتى الآن.",
     requiredTitle: "أضف عنوانًا واحدًا على الأقل.",
+    requiredMagazineDocument: "أضف ملف PDF الخاص بالمجلة.",
     edit: "تعديل",
     delete: "حذف",
     confirmDelete: "تأكيد الحذف؟",
@@ -1068,8 +1071,15 @@ function MagazinesTab() {
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
-    if (!formData.titleFr || !formData.pdfUrl) {
-      toast.error("Titre FR et PDF URL sont requis");
+    const hasTitle = Boolean(formData.titleFr || formData.titleEn || formData.titleAr);
+
+    if (!hasTitle) {
+      toast.error(admin.requiredTitle);
+      return;
+    }
+
+    if (!formData.pdfUrl) {
+      toast.error(admin.requiredMagazineDocument);
       return;
     }
     const payload = {

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { TrpcContext } from "./_core/context";
 
 const storagePutMock = vi.fn();
@@ -26,6 +26,12 @@ function createAdminContext(): TrpcContext {
 }
 
 describe("uploads router", () => {
+  let appRouter: typeof import("./routers")["appRouter"];
+
+  beforeAll(async () => {
+    ({ appRouter } = await import("./routers"));
+  });
+
   beforeEach(() => {
     storagePutMock.mockReset();
     storagePutMock.mockResolvedValue({
@@ -35,7 +41,6 @@ describe("uploads router", () => {
   });
 
   it("uploads an admin document file to storage", async () => {
-    const { appRouter } = await import("./routers");
     const caller = appRouter.createCaller(createAdminContext());
 
     const result = await caller.uploads.file({
@@ -66,7 +71,6 @@ describe("uploads router", () => {
       expectedPrefix: "le-brief/videos/",
     },
   ])("accepts supported $bucket uploads", async ({ bucket, fileName, mimeType, expectedPrefix }) => {
-    const { appRouter } = await import("./routers");
     const caller = appRouter.createCaller(createAdminContext());
 
     await caller.uploads.file({
@@ -83,7 +87,6 @@ describe("uploads router", () => {
   });
 
   it("rejects unsupported document formats", async () => {
-    const { appRouter } = await import("./routers");
     const caller = appRouter.createCaller(createAdminContext());
 
     await expect(
