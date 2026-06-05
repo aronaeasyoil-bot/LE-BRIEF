@@ -2,7 +2,15 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { getAllCategories, getArticleById, getPublishedArticles, getPublishedEvents } from "../db";
-import { buildSitemapXml, renderArticleHtml, SITE_URL, type SitemapUrl } from "./seo";
+import {
+  buildNewsSitemapXml,
+  buildRobotsTxt,
+  buildRssXml,
+  buildSitemapXml,
+  renderArticleHtml,
+  SITE_URL,
+  type SitemapUrl,
+} from "./seo";
 
 let templatePromise: Promise<string> | null = null;
 
@@ -38,6 +46,8 @@ const STATIC_SITEMAP_URLS: SitemapUrl[] = [
   { loc: `${SITE_URL}/privacy`, priority: 0.3, changefreq: "monthly" },
 ];
 
+const NO_CACHE_HEADER = "public, max-age=0, must-revalidate";
+
 function getLatestEventUpdate(events: Array<{ eventDate?: Date | string | null; updatedAt?: Date | string | null }>) {
   return events.reduce<Date | string | null | undefined>((latest, event) => {
     const candidate = event.updatedAt || event.eventDate;
@@ -62,11 +72,69 @@ function resolveSettled<T>(label: string, result: PromiseSettledResult<T>, fallb
   return fallback;
 }
 
-function writeXmlResponse(res: any, xml: string) {
+function pickCategoryName(category: {
+  nameAr?: string | null;
+  nameEn?: string | null;
+  nameFr?: string | null;
+  slug?: string | null;
+}) {
+  return category.nameFr || category.nameEn || category.nameAr || category.slug || undefined;
+}
+
+function attachArticleCategories<
+  TArticle extends {
+    categoryId?: number | null;
+  },
+>(
+  articles: TArticle[],
+  categories: Array<{
+    id: number;
+    nameAr?: string | null;
+    nameEn?: string | null;
+    nameFr?: string | null;
+    slug?: string | null;
+  }>,
+) {
+  const categoryMap = new Map(categories.map((category) => [category.id, category]));
+  return articles.map((article) => {
+    const category = article.categoryId ? categoryMap.get(article.categoryId) : undefined;
+    return {
+      ...article,
+      categoryName: category ? pickCategoryName(category) : undefined,
+      categorySlug: category?.slug || undefined,
+    };
+  });
+}
+
+async function fetchSeoContent() {
+  const [articlesResult, categoriesResult, eventsResult] = await Promise.allSettled([
+    getPublishedArticles(),
+    getAllCategories(),
+    getPublishedEvents(),
+  ]);
+
+  const categories = resolveSettled("Categories", categoriesResult, []);
+  const articles = attachArticleCategories(
+    resolveSettled("Published articles", articlesResult, []),
+    categories,
+  );
+  const events = resolveSettled("Published events", eventsResult, []);
+
+  return { articles, categories, events };
+}
+
+function writeXmlResponse(res: any, xml: string, contentType = "application/xml") {
   res.statusCode = 200;
-  res.setHeader("Cache-Control", "public, max-age=0, s-maxage=900, stale-while-revalidate=86400");
-  res.setHeader("Content-Type", "application/xml");
+  res.setHeader("Cache-Control", NO_CACHE_HEADER);
+  res.setHeader("Content-Type", contentType);
   res.end(xml, "utf-8");
+}
+
+function writeTextResponse(res: any, body: string, contentType = "text/plain; charset=UTF-8") {
+  res.statusCode = 200;
+  res.setHeader("Cache-Control", NO_CACHE_HEADER);
+  res.setHeader("Content-Type", contentType);
+  res.end(body, "utf-8");
 }
 
 export function registerSeoRoutes(app: any) {
@@ -79,15 +147,21 @@ export function registerSeoRoutes(app: any) {
     }
 
     try {
-      const [template, article] = await Promise.all([loadAppTemplate(), getArticleById(articleId)]);
+      const [template, article, categories] = await Promise.all([
+        loadAppTemplate(),
+        getArticleById(articleId),
+        getAllCategories(),
+      ]);
 
       if (!article) {
         res.status(404).type("html").send(template);
         return;
       }
 
-      res.set("Cache-Control", "public, s-maxage=300, stale-while-revalidate=86400");
-      res.type("html").send(renderArticleHtml(template, article));
+      const [enrichedArticle] = attachArticleCategories([article], categories);
+
+      res.set("Cache-Control", NO_CACHE_HEADER);
+      res.type("html").send(renderArticleHtml(template, enrichedArticle));
     } catch (error) {
       console.error("[SEO] Article render failed:", error);
       res.status(500).send("Article render failed");
@@ -96,15 +170,7 @@ export function registerSeoRoutes(app: any) {
 
   app.get(["/api/sitemap", "/sitemap.xml"], async (_req: any, res: any) => {
     try {
-      const [articlesResult, categoriesResult, eventsResult] = await Promise.allSettled([
-        getPublishedArticles(),
-        getAllCategories(),
-        getPublishedEvents(),
-      ]);
-
-      const articles = resolveSettled("Published articles", articlesResult, []);
-      const categories = resolveSettled("Categories", categoriesResult, []);
-      const events = resolveSettled("Published events", eventsResult, []);
+      const { articles, categories, events } = await fetchSeoContent();
       const latestEventUpdate = getLatestEventUpdate(events);
 
       const urls = [
@@ -129,6 +195,35 @@ export function registerSeoRoutes(app: any) {
     } catch (error) {
       console.error("[SEO] Sitemap render failed:", error);
       writeXmlResponse(res, buildSitemapXml(STATIC_SITEMAP_URLS));
+    }
+  });
+
+  app.get(["/api/news-sitemap", "/news-sitemap.xml"], async (_req: any, res: any) => {
+    try {
+      const { articles } = await fetchSeoContent();
+      writeXmlResponse(res, buildNewsSitemapXml(articles));
+    } catch (error) {
+      console.error("[SEO] News sitemap render failed:", error);
+      writeXmlResponse(res, buildNewsSitemapXml([]));
+    }
+  });
+
+  app.get(["/api/rss", "/rss.xml"], async (_req: any, res: any) => {
+    try {
+      const { articles } = await fetchSeoContent();
+      writeXmlResponse(res, buildRssXml(articles), "application/rss+xml; charset=UTF-8");
+    } catch (error) {
+      console.error("[SEO] RSS render failed:", error);
+      writeXmlResponse(res, buildRssXml([]), "application/rss+xml; charset=UTF-8");
+    }
+  });
+
+  app.get(["/api/robots", "/robots.txt"], async (_req: any, res: any) => {
+    try {
+      writeTextResponse(res, buildRobotsTxt());
+    } catch (error) {
+      console.error("[SEO] Robots render failed:", error);
+      writeTextResponse(res, "User-agent: *\nAllow: /\n");
     }
   });
 }

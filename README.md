@@ -37,6 +37,27 @@ pnpm db:push
 
 - Site Vercel: `https://le-brief-media.vercel.app`
 - Les variables Vercel doivent etre definies pour `production`, `preview` et `development`
+- Les endpoints SEO dynamiques exposes sont:
+  - `https://www.lebrief.energy/sitemap.xml`
+  - `https://www.lebrief.energy/news-sitemap.xml`
+  - `https://www.lebrief.energy/rss.xml`
+  - `https://www.lebrief.energy/robots.txt`
+
+## SEO automatique
+
+- Les articles publies ou modifies mettent a jour automatiquement les sorties SEO dynamiques:
+  - sitemap principal
+  - sitemap Google News
+  - RSS feed
+  - meta Open Graph / Twitter
+  - JSON-LD `NewsArticle`
+- La soumission Search Console passe par l'API `webmasters` de Google, pas par l'Indexing API.
+- Pour l'activer en production, definir:
+  - `SEARCH_CONSOLE_CLIENT_EMAIL`
+  - `SEARCH_CONSOLE_PRIVATE_KEY`
+  - `SEARCH_CONSOLE_PRIVATE_KEY_ID`
+  - `SEARCH_CONSOLE_PROPERTY`
+- Le compte de service Google doit avoir acces a la propriete Search Console ciblee, soit en prefixe d'URL (`https://www.lebrief.energy/`), soit en propriete domaine (`sc-domain:lebrief.energy`).
 
 ## Administration
 

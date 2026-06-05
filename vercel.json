@@ -4,8 +4,20 @@
   "outputDirectory": "dist/public",
   "rewrites": [
     {
+      "source": "/robots.txt",
+      "destination": "/api/robots"
+    },
+    {
       "source": "/sitemap.xml",
       "destination": "/api/sitemap"
+    },
+    {
+      "source": "/news-sitemap.xml",
+      "destination": "/api/news-sitemap"
+    },
+    {
+      "source": "/rss.xml",
+      "destination": "/api/rss"
     },
     {
       "source": "/article/:id",

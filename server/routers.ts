@@ -2,6 +2,7 @@ import { COOKIE_NAME, ONE_YEAR_MS } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { uploadAdminFile } from "./_core/fileUpload";
 import { sdk } from "./_core/sdk";
+import { submitSearchConsoleSitemaps } from "./_core/searchConsole";
 import { systemRouter } from "./_core/systemRouter";
 import { getLocalAdminName, getLocalAdminOpenId, isLocalAdminConfigured, verifyLocalAdminCredentials } from "./_core/localAdmin";
 import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
@@ -74,6 +75,17 @@ function normalizeAdvertisementRecord(advertisement: any) {
     linkUrl: normalizeOptionalText(advertisement.linkUrl),
     videoUrl: normalizeOptionalText(advertisement.videoUrl),
   };
+}
+
+async function syncArticleSeoAutomation() {
+  try {
+    const result = await submitSearchConsoleSitemaps();
+    if (!result.skipped) {
+      console.info("[SEO] Search Console sitemaps submitted:", result.sitemapUrls.join(", "));
+    }
+  } catch (error) {
+    console.error("[SEO] Search Console automation failed:", error);
+  }
 }
 
 export const appRouter = router({
@@ -201,15 +213,19 @@ export const appRouter = router({
         publishedAt: z.date().optional(),
       }))
       .mutation(async ({ input }) => {
+        const isPublished = input.published ?? false;
         const id = await createArticle({
           ...input,
           authorName: normalizeOptionalText(input.authorName),
           featured: input.featured ?? false,
           imageUrl: normalizeOptionalText(input.imageUrl),
-          published: input.published ?? false,
+          published: isPublished,
           language: input.language ?? "all",
-          publishedAt: input.publishedAt ?? new Date(),
+          publishedAt: isPublished ? input.publishedAt ?? new Date() : input.publishedAt,
         });
+        if (isPublished) {
+          await syncArticleSeoAutomation();
+        }
         return { id };
       }),
     update: adminProcedure
@@ -230,14 +246,23 @@ export const appRouter = router({
         featured: z.boolean().optional(),
         published: z.boolean().optional(),
         language: z.enum(["fr", "en", "ar", "all"]).optional(),
+        publishedAt: z.date().optional(),
       }))
       .mutation(async ({ input }) => {
         const { id, ...data } = input;
+        const currentArticle = await getArticleById(id);
+        const isPublishingNow = Boolean(currentArticle && !currentArticle.published && data.published === true);
+        const shouldSyncSeo = Boolean(currentArticle?.published || data.published === true);
+
         await updateArticle(id, {
           ...data,
           authorName: normalizeOptionalText(data.authorName),
           imageUrl: normalizeOptionalText(data.imageUrl),
+          publishedAt: data.publishedAt ?? (isPublishingNow ? new Date() : undefined),
         });
+        if (shouldSyncSeo) {
+          await syncArticleSeoAutomation();
+        }
         return { success: true };
       }),
     delete: adminProcedure

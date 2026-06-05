@@ -7,12 +7,18 @@ export const SITE_URL = "https://www.lebrief.energy";
 export const SITE_DESCRIPTION =
   "Strategic intelligence on energy, economy, investment, and events across Africa and the Middle East.";
 export const DEFAULT_PREVIEW_IMAGE_URL = `${SITE_URL}/media/lebrief-share-preview.jpeg`;
+export const CONTACT_EMAIL = "contact@lebrief.energy";
+export const MAIN_SITEMAP_URL = `${SITE_URL}/sitemap.xml`;
+export const NEWS_SITEMAP_URL = `${SITE_URL}/news-sitemap.xml`;
+export const RSS_FEED_URL = `${SITE_URL}/rss.xml`;
 
 type NullableText = null | string | undefined;
 
 type ArticleLike = {
   id: number;
   authorName?: NullableText;
+  categoryName?: NullableText;
+  categorySlug?: NullableText;
   contentAr?: NullableText;
   contentEn?: NullableText;
   contentFr?: NullableText;
@@ -20,6 +26,7 @@ type ArticleLike = {
   excerptEn?: NullableText;
   excerptFr?: NullableText;
   imageUrl?: NullableText;
+  language?: NullableText;
   publishedAt?: Date | null | string;
   titleAr?: NullableText;
   titleEn?: NullableText;
@@ -101,6 +108,19 @@ function toSitemapLastmod(value?: Date | null | string) {
   return isoDate ? isoDate.slice(0, 10) : undefined;
 }
 
+function toRfc822Date(value?: Date | null | string) {
+  if (!value) {
+    return undefined;
+  }
+
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return undefined;
+  }
+
+  return date.toUTCString();
+}
+
 function normalizeSitemapLoc(value: string) {
   try {
     return new URL(value).toString();
@@ -129,7 +149,10 @@ function buildOrganizationJsonLd() {
     "@context": "https://schema.org",
     "@type": "Organization",
     email: "contact@lebrief.energy",
-    logo: DEFAULT_PREVIEW_IMAGE_URL,
+    logo: {
+      "@type": "ImageObject",
+      url: DEFAULT_PREVIEW_IMAGE_URL,
+    },
     name: SITE_NAME,
     url: SITE_URL,
   };
@@ -142,7 +165,14 @@ function buildSeoBlock({
   jsonLd,
   title,
   type,
+  articleMeta,
 }: {
+  articleMeta?: {
+    authorName?: string;
+    modifiedAt?: string;
+    publishedAt?: string;
+    section?: string;
+  };
   canonicalUrl: string;
   description: string;
   imageUrl: string;
@@ -158,6 +188,8 @@ function buildSeoBlock({
   const jsonLdMarkup = jsonLd
     .map((entry) => `<script type="application/ld+json">${serializeJsonLd(entry)}</script>`)
     .join("\n    ");
+  const escapedAuthorName = articleMeta?.authorName ? escapeHtml(articleMeta.authorName) : "";
+  const escapedSection = articleMeta?.section ? escapeHtml(articleMeta.section) : "";
 
   return `${SEO_START_MARKER}
     <title>${escapedTitle}</title>
@@ -173,6 +205,11 @@ function buildSeoBlock({
     <link
       rel="canonical"
       href="${escapedCanonicalUrl}" />
+    <link
+      rel="alternate"
+      type="application/rss+xml"
+      title="${SITE_NAME} RSS"
+      href="${RSS_FEED_URL}" />
     <meta
       property="og:type"
       content="${type}" />
@@ -192,6 +229,24 @@ function buildSeoBlock({
       property="og:image"
       content="${escapedImageUrl}" />
     <meta
+      property="og:image:alt"
+      content="${escapedTitle}" />
+    ${escapedAuthorName ? `<meta
+      name="author"
+      content="${escapedAuthorName}" />` : ""}
+    ${type === "article" && articleMeta?.publishedAt ? `<meta
+      property="article:published_time"
+      content="${escapeHtml(articleMeta.publishedAt)}" />` : ""}
+    ${type === "article" && articleMeta?.modifiedAt ? `<meta
+      property="article:modified_time"
+      content="${escapeHtml(articleMeta.modifiedAt)}" />` : ""}
+    ${type === "article" && escapedAuthorName ? `<meta
+      property="article:author"
+      content="${escapedAuthorName}" />` : ""}
+    ${type === "article" && escapedSection ? `<meta
+      property="article:section"
+      content="${escapedSection}" />` : ""}
+    <meta
       name="twitter:card"
       content="summary_large_image" />
     <meta
@@ -207,27 +262,64 @@ function buildSeoBlock({
     ${SEO_END_MARKER}`;
 }
 
+function pickArticleLanguageCode(article: ArticleLike) {
+  const normalizedLanguage = normalizeOptionalString(article.language)?.toLowerCase();
+
+  if (normalizedLanguage === "ar" || normalizedLanguage === "en" || normalizedLanguage === "fr") {
+    return normalizedLanguage;
+  }
+
+  if (
+    normalizeOptionalString(article.titleAr) ||
+    normalizeOptionalString(article.excerptAr) ||
+    normalizeOptionalString(article.contentAr)
+  ) {
+    return "ar";
+  }
+
+  if (
+    normalizeOptionalString(article.titleEn) ||
+    normalizeOptionalString(article.excerptEn) ||
+    normalizeOptionalString(article.contentEn)
+  ) {
+    return "en";
+  }
+
+  return "fr";
+}
+
 function buildArticleJsonLd(article: ArticleLike, title: string, description: string, imageUrl: string) {
   const publishedAt = toIsoDate(article.publishedAt);
   const updatedAt = toIsoDate(article.updatedAt) || publishedAt;
+  const authorName = normalizeOptionalString(article.authorName);
+  const categoryName = normalizeOptionalString(article.categoryName);
+  const language = pickArticleLanguageCode(article);
 
   return {
     "@context": "https://schema.org",
     "@type": "NewsArticle",
-    author: {
-      "@type": "Organization",
-      name: normalizeOptionalString(article.authorName) || SITE_NAME,
-    },
+    author: authorName
+      ? {
+          "@type": "Person",
+          name: authorName,
+        }
+      : {
+          "@type": "Organization",
+          name: SITE_NAME,
+        },
+    articleSection: categoryName,
     dateModified: updatedAt,
     datePublished: publishedAt,
     description,
     headline: title,
     image: [imageUrl],
+    inLanguage: language,
     mainEntityOfPage: {
       "@type": "WebPage",
       "@id": toSiteUrl(`/article/${article.id}`),
     },
     publisher: buildOrganizationJsonLd(),
+    url: toSiteUrl(`/article/${article.id}`),
   };
 }
 
@@ -285,7 +377,17 @@ export function renderArticleHtml(template: string, article: ArticleLike) {
   const description = pickArticleDescription(article);
   const canonicalUrl = toSiteUrl(`/article/${article.id}`);
   const imageUrl = toAbsoluteUrl(article.imageUrl) || DEFAULT_PREVIEW_IMAGE_URL;
+  const publishedAt = toIsoDate(article.publishedAt);
+  const modifiedAt = toIsoDate(article.updatedAt) || publishedAt;
+  const authorName = normalizeOptionalString(article.authorName);
+  const section = normalizeOptionalString(article.categoryName);
   const seoBlock = buildSeoBlock({
+    articleMeta: {
+      authorName,
+      modifiedAt,
+      publishedAt,
+      section,
+    },
     canonicalUrl,
     description,
     imageUrl,
@@ -329,6 +431,86 @@ export function buildSitemapXml(urls: SitemapUrl[]) {
     .join("\n");
 
   return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${entries}\n</urlset>\n`;
+}
+
+export function buildNewsSitemapXml(articles: ArticleLike[]) {
+  const cutoff = Date.now() - 48 * 60 * 60 * 1000;
+  const uniqueArticles = new Map<string, ArticleLike>();
+
+  for (const article of articles) {
+    const loc = normalizeSitemapLoc(toSiteUrl(`/article/${article.id}`));
+    const publishedAt = article.publishedAt ? new Date(article.publishedAt) : undefined;
+
+    if (!loc || !publishedAt || Number.isNaN(publishedAt.getTime()) || publishedAt.getTime() < cutoff) {
+      continue;
+    }
+
+    if (!uniqueArticles.has(loc)) {
+      uniqueArticles.set(loc, article);
+    }
+  }
+
+  const entries = Array.from(uniqueArticles.entries())
+    .map(([loc, article]) => {
+      const title = escapeXml(pickArticleTitle(article));
+      const publicationDate = toIsoDate(article.publishedAt);
+      const language = escapeXml(pickArticleLanguageCode(article));
+
+      return [
+        "  <url>",
+        `    <loc>${escapeXml(loc)}</loc>`,
+        "    <news:news>",
+        "      <news:publication>",
+        `        <news:name>${escapeXml(SITE_NAME)}</news:name>`,
+        `        <news:language>${language}</news:language>`,
+        "      </news:publication>",
+        publicationDate ? `      <news:publication_date>${escapeXml(publicationDate)}</news:publication_date>` : "",
+        `      <news:title>${title}</news:title>`,
+        "    </news:news>",
+        "  </url>",
+      ]
+        .filter(Boolean)
+        .join("\n");
+    })
+    .join("\n");
+
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:news="http://www.google.com/schemas/sitemap-news/0.9">\n${entries}\n</urlset>\n`;
+}
+
+export function buildRssXml(articles: ArticleLike[]) {
+  const lastBuildDate =
+    toRfc822Date(articles[0]?.updatedAt || articles[0]?.publishedAt) || new Date().toUTCString();
+
+  const items = articles
+    .map((article) => {
+      const title = escapeXml(pickArticleTitle(article));
+      const description = escapeXml(pickArticleDescription(article));
+      const loc = toSiteUrl(`/article/${article.id}`);
+      const pubDate = toRfc822Date(article.publishedAt || article.updatedAt) || lastBuildDate;
+      const authorName = normalizeOptionalString(article.authorName);
+      const categoryName = normalizeOptionalString(article.categoryName);
+
+      return [
+        "    <item>",
+        `      <title>${title}</title>`,
+        `      <link>${escapeXml(loc)}</link>`,
+        `      <guid isPermaLink="true">${escapeXml(loc)}</guid>`,
+        `      <description>${description}</description>`,
+        `      <pubDate>${escapeXml(pubDate)}</pubDate>`,
+        authorName ? `      <author>${escapeXml(`${CONTACT_EMAIL} (${authorName})`)}</author>` : "",
+        categoryName ? `      <category>${escapeXml(categoryName)}</category>` : "",
+        "    </item>",
+      ]
+        .filter(Boolean)
+        .join("\n");
+    })
+    .join("\n");
+
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">\n  <channel>\n    <title>${escapeXml(SITE_NAME)}</title>\n    <link>${escapeXml(SITE_URL)}</link>\n    <description>${escapeXml(SITE_DESCRIPTION)}</description>\n    <language>fr</language>\n    <lastBuildDate>${escapeXml(lastBuildDate)}</lastBuildDate>\n    <atom:link href="${escapeXml(RSS_FEED_URL)}" rel="self" type="application/rss+xml" />\n${items}\n  </channel>\n</rss>\n`;
+}
+
+export function buildRobotsTxt() {
+  return `User-agent: *\nAllow: /\n\nSitemap: ${MAIN_SITEMAP_URL}\nSitemap: ${NEWS_SITEMAP_URL}\n`;
 }
 
 export function toAbsoluteContentUrl(value?: NullableText) {
