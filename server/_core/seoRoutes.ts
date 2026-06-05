@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { getAllCategories, getArticleById, getPublishedArticles, getPublishedEvents } from "../db";
-import { buildSitemapXml, renderArticleHtml, SITE_URL } from "./seo";
+import { buildSitemapXml, renderArticleHtml, SITE_URL, type SitemapUrl } from "./seo";
 
 let templatePromise: Promise<string> | null = null;
 
@@ -28,6 +28,45 @@ async function loadAppTemplate() {
   }
 
   return templatePromise;
+}
+
+const STATIC_SITEMAP_URLS: SitemapUrl[] = [
+  { loc: `${SITE_URL}/`, priority: 1.0, changefreq: "daily" },
+  { loc: `${SITE_URL}/about`, priority: 0.7, changefreq: "monthly" },
+  { loc: `${SITE_URL}/events`, priority: 0.8, changefreq: "weekly" },
+  { loc: `${SITE_URL}/legal`, priority: 0.3, changefreq: "monthly" },
+  { loc: `${SITE_URL}/privacy`, priority: 0.3, changefreq: "monthly" },
+];
+
+function getLatestEventUpdate(events: Array<{ eventDate?: Date | string | null; updatedAt?: Date | string | null }>) {
+  return events.reduce<Date | string | null | undefined>((latest, event) => {
+    const candidate = event.updatedAt || event.eventDate;
+    if (!candidate) {
+      return latest;
+    }
+
+    if (!latest) {
+      return candidate;
+    }
+
+    return new Date(candidate).getTime() > new Date(latest).getTime() ? candidate : latest;
+  }, undefined);
+}
+
+function resolveSettled<T>(label: string, result: PromiseSettledResult<T>, fallback: T) {
+  if (result.status === "fulfilled") {
+    return result.value;
+  }
+
+  console.error(`[SEO] ${label} fetch failed:`, result.reason);
+  return fallback;
+}
+
+function writeXmlResponse(res: any, xml: string) {
+  res.statusCode = 200;
+  res.setHeader("Cache-Control", "public, max-age=0, s-maxage=900, stale-while-revalidate=86400");
+  res.setHeader("Content-Type", "application/xml");
+  res.end(xml, "utf-8");
 }
 
 export function registerSeoRoutes(app: any) {
@@ -57,30 +96,21 @@ export function registerSeoRoutes(app: any) {
 
   app.get(["/api/sitemap", "/sitemap.xml"], async (_req: any, res: any) => {
     try {
-      const [articles, categories, events] = await Promise.all([
+      const [articlesResult, categoriesResult, eventsResult] = await Promise.allSettled([
         getPublishedArticles(),
         getAllCategories(),
         getPublishedEvents(),
       ]);
-      const latestEventUpdate = events.reduce<Date | string | null | undefined>((latest, event) => {
-        const candidate = event.updatedAt || event.eventDate;
-        if (!candidate) {
-          return latest;
-        }
 
-        if (!latest) {
-          return candidate;
-        }
-
-        return new Date(candidate).getTime() > new Date(latest).getTime() ? candidate : latest;
-      }, undefined);
+      const articles = resolveSettled("Published articles", articlesResult, []);
+      const categories = resolveSettled("Categories", categoriesResult, []);
+      const events = resolveSettled("Published events", eventsResult, []);
+      const latestEventUpdate = getLatestEventUpdate(events);
 
       const urls = [
-        { loc: `${SITE_URL}/`, priority: 1.0, changefreq: "daily" as const },
-        { loc: `${SITE_URL}/about`, priority: 0.7, changefreq: "monthly" as const },
-        { loc: `${SITE_URL}/events`, priority: 0.8, changefreq: "weekly" as const, lastmod: latestEventUpdate },
-        { loc: `${SITE_URL}/legal`, priority: 0.3, changefreq: "monthly" as const },
-        { loc: `${SITE_URL}/privacy`, priority: 0.3, changefreq: "monthly" as const },
+        ...STATIC_SITEMAP_URLS.map((entry) =>
+          entry.loc.endsWith("/events") ? { ...entry, lastmod: latestEventUpdate } : entry,
+        ),
         ...categories.map((category) => ({
           loc: `${SITE_URL}/category/${category.slug}`,
           changefreq: "weekly" as const,
@@ -95,11 +125,10 @@ export function registerSeoRoutes(app: any) {
         })),
       ];
 
-      res.set("Cache-Control", "public, s-maxage=900, stale-while-revalidate=86400");
-      res.type("application/xml").send(buildSitemapXml(urls));
+      writeXmlResponse(res, buildSitemapXml(urls));
     } catch (error) {
       console.error("[SEO] Sitemap render failed:", error);
-      res.status(500).send("Sitemap render failed");
+      writeXmlResponse(res, buildSitemapXml(STATIC_SITEMAP_URLS));
     }
   });
 }

@@ -49,9 +49,10 @@ describe("seo helpers", () => {
       },
     ]);
 
-    expect(xml).toContain("<urlset");
+    expect(xml.startsWith('<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">')).toBe(true);
     expect(xml).toContain("<loc>https://www.lebrief.energy/</loc>");
     expect(xml).toContain("<loc>https://www.lebrief.energy/article/42</loc>");
+    expect(xml).toContain("<lastmod>2026-06-05</lastmod>");
     expect(xml).toContain("<changefreq>daily</changefreq>");
   });
 });

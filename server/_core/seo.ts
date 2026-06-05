@@ -96,6 +96,19 @@ function toIsoDate(value?: Date | null | string) {
   return date.toISOString();
 }
 
+function toSitemapLastmod(value?: Date | null | string) {
+  const isoDate = toIsoDate(value);
+  return isoDate ? isoDate.slice(0, 10) : undefined;
+}
+
+function normalizeSitemapLoc(value: string) {
+  try {
+    return new URL(value).toString();
+  } catch {
+    return undefined;
+  }
+}
+
 function toSiteUrl(path: string) {
   return new URL(path, SITE_URL).toString();
 }
@@ -286,9 +299,22 @@ export function renderArticleHtml(template: string, article: ArticleLike) {
 }
 
 export function buildSitemapXml(urls: SitemapUrl[]) {
-  const entries = urls
+  const uniqueUrls = new Map<string, SitemapUrl>();
+
+  for (const entry of urls) {
+    const loc = normalizeSitemapLoc(entry.loc);
+    if (!loc) {
+      continue;
+    }
+
+    if (!uniqueUrls.has(loc)) {
+      uniqueUrls.set(loc, { ...entry, loc });
+    }
+  }
+
+  const entries = Array.from(uniqueUrls.values())
     .map((entry) => {
-      const lastmod = toIsoDate(entry.lastmod);
+      const lastmod = toSitemapLastmod(entry.lastmod);
       return [
         "  <url>",
         `    <loc>${escapeXml(entry.loc)}</loc>`,
