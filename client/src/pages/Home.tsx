@@ -11,6 +11,7 @@ import Kiosk from "@/components/Kiosk";
 import AdsCarousel from "@/components/AdsCarousel";
 import PriceWidget from "@/components/PriceWidget";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useMemo, useState } from "react";
 
 function getLocalizedField(item: any, field: string, lang: string): string {
   const key = `${field}${lang.charAt(0).toUpperCase() + lang.slice(1)}`;
@@ -30,6 +31,8 @@ const localMagazineFallback = [
   },
 ];
 
+const ARTICLE_BATCH_SIZE = 35;
+
 export default function Home() {
   const { t, lang, rtl } = useLanguage();
   const { data: featured = [] } = trpc.articles.featured.useQuery({});
@@ -37,7 +40,18 @@ export default function Home() {
   const { data: events = [] } = trpc.events.published.useQuery();
   const { data: magazines = [] } = trpc.magazines.list.useQuery();
   const { data: ads = [] } = trpc.advertisements.active.useQuery();
+  const [visibleArticlesCount, setVisibleArticlesCount] = useState(ARTICLE_BATCH_SIZE);
   const displayedMagazines = magazines.length > 0 ? magazines : localMagazineFallback;
+  const visibleArticles = useMemo(
+    () => articles.slice(0, visibleArticlesCount),
+    [articles, visibleArticlesCount],
+  );
+  const hasMoreArticles = visibleArticlesCount < articles.length;
+  const canCollapseArticles = visibleArticlesCount > ARTICLE_BATCH_SIZE;
+  const showMoreArticlesLabel =
+    lang === "fr" ? "Voir plus" : lang === "ar" ? "عرض المزيد" : "View more";
+  const showLessArticlesLabel =
+    lang === "fr" ? "Voir moins" : lang === "ar" ? "عرض اقل" : "Show less";
 
   return (
     <div className="min-h-screen bg-background" dir={rtl ? "rtl" : "ltr"}>
@@ -199,42 +213,76 @@ export default function Home() {
           </motion.div>
 
           {articles && articles.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {articles.map((article, i) => (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {visibleArticles.map((article, i) => (
+                  <motion.div
+                    key={article.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ delay: i * 0.05 }}
+                  >
+                    <Link href={`/article/${article.id}`}>
+                      <div className="group h-full border border-border rounded-lg overflow-hidden hover:border-gold transition-all cursor-pointer hover:shadow-lg hover:shadow-gold/10 flex flex-col">
+                        {article.imageUrl && (
+                          <div className="relative h-48 overflow-hidden bg-card">
+                            <img
+                              src={article.imageUrl}
+                              alt={getLocalizedField(article, "title", lang)}
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                            />
+                          </div>
+                        )}
+                        <div className="p-4 flex-1 flex flex-col">
+                          <div className="text-xs font-bold text-gold mb-2 uppercase tracking-wider">
+                            {article.categoryId === 1 ? t.nav.energy : article.categoryId === 2 ? t.nav.oilGas : t.nav.economy}
+                          </div>
+                          <h3 className="font-bold text-foreground group-hover:text-gold transition-colors line-clamp-3 mb-3 flex-1">
+                            {getLocalizedField(article, "title", lang)}
+                          </h3>
+                          <p className="text-xs text-muted-foreground line-clamp-2">
+                            {getLocalizedField(article, "excerpt", lang)}
+                          </p>
+                        </div>
+                      </div>
+                    </Link>
+                  </motion.div>
+                ))}
+              </div>
+
+              {(hasMoreArticles || canCollapseArticles) && (
                 <motion.div
-                  key={article.id}
-                  initial={{ opacity: 0, y: 20 }}
+                  initial={{ opacity: 0, y: 16 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
-                  transition={{ delay: i * 0.05 }}
+                  className="mt-8 flex flex-wrap items-center justify-center gap-3"
                 >
-                  <Link href={`/article/${article.id}`}>
-                    <div className="group h-full border border-border rounded-lg overflow-hidden hover:border-gold transition-all cursor-pointer hover:shadow-lg hover:shadow-gold/10 flex flex-col">
-                      {article.imageUrl && (
-                        <div className="relative h-48 overflow-hidden bg-card">
-                          <img
-                            src={article.imageUrl}
-                            alt={getLocalizedField(article, "title", lang)}
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                          />
-                        </div>
-                      )}
-                      <div className="p-4 flex-1 flex flex-col">
-                        <div className="text-xs font-bold text-gold mb-2 uppercase tracking-wider">
-                          {article.categoryId === 1 ? t.nav.energy : article.categoryId === 2 ? t.nav.oilGas : t.nav.economy}
-                        </div>
-                        <h3 className="font-bold text-foreground group-hover:text-gold transition-colors line-clamp-3 mb-3 flex-1">
-                          {getLocalizedField(article, "title", lang)}
-                        </h3>
-                        <p className="text-xs text-muted-foreground line-clamp-2">
-                          {getLocalizedField(article, "excerpt", lang)}
-                        </p>
-                      </div>
-                    </div>
-                  </Link>
+                  {hasMoreArticles && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setVisibleArticlesCount((current) =>
+                          Math.min(current + ARTICLE_BATCH_SIZE, articles.length),
+                        )
+                      }
+                      className="rounded-lg bg-primary px-6 py-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+                    >
+                      {showMoreArticlesLabel}
+                    </button>
+                  )}
+                  {canCollapseArticles && (
+                    <button
+                      type="button"
+                      onClick={() => setVisibleArticlesCount(ARTICLE_BATCH_SIZE)}
+                      className="rounded-lg border border-border px-6 py-3 text-sm font-medium text-foreground transition-colors hover:bg-card"
+                    >
+                      {showLessArticlesLabel}
+                    </button>
+                  )}
                 </motion.div>
-              ))}
-            </div>
+              )}
+            </>
           ) : null}
         </div>
       </section>

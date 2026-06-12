@@ -1,43 +1,60 @@
 import { motion } from "framer-motion";
-import { TrendingUp, TrendingDown } from "lucide-react";
-import { useState, useEffect } from "react";
+import { TrendingDown, TrendingUp } from "lucide-react";
 
-interface PriceData {
+type PriceData = {
   name: string;
   price: number;
   change: number;
   unit: string;
+};
+
+const MARKET_ITEMS: PriceData[] = [
+  { name: "PLATTS 10 PPM FUJ", price: 1102, change: 2.3, unit: "$/MT" },
+  { name: "PLATTS 10 PPM CIF NEW", price: 1102, change: 1.2, unit: "$/MT" },
+  { name: "CAC 40", price: 7850.25, change: 1.8, unit: "pts" },
+  { name: "Gaz Naturel", price: 3.45, change: -3.1, unit: "USD/MMBtu" },
+];
+
+function formatPrice(value: number) {
+  const hasDecimals = !Number.isInteger(value);
+
+  return new Intl.NumberFormat("fr-FR", {
+    minimumFractionDigits: hasDecimals ? 2 : 0,
+    maximumFractionDigits: hasDecimals ? 2 : 0,
+  }).format(value);
 }
 
 export default function PriceWidget() {
-  const [prices, setPrices] = useState<PriceData[]>([
-    { name: "Pétrole (Brent)", price: 85.42, change: 2.3, unit: "USD/bbl" },
-    { name: "Or", price: 2350.50, change: -1.2, unit: "USD/oz" },
-    { name: "CAC 40", price: 7850.25, change: 1.8, unit: "pts" },
-    { name: "Gaz Naturel", price: 3.45, change: -3.1, unit: "USD/MMBtu" },
-  ]);
-
   return (
-    <section className="py-6 bg-gradient-to-r from-primary/10 to-accent/10 border-b border-border">
+    <section className="border-b border-border bg-gradient-to-r from-primary/10 to-accent/10 py-6">
       <div className="container">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {prices.map((item, i) => (
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+          {MARKET_ITEMS.map((item, index) => (
             <motion.div
               key={item.name}
               initial={{ opacity: 0, y: 10 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              transition={{ delay: i * 0.05 }}
-              className="p-3 border border-border rounded-lg bg-card/50 hover:bg-card transition-colors"
+              transition={{ delay: index * 0.05 }}
+              className="rounded-lg border border-border bg-card/50 p-3 transition-colors hover:bg-card"
             >
-              <p className="text-xs text-muted-foreground font-medium mb-1">{item.name}</p>
+              <p className="mb-1 text-xs font-medium text-muted-foreground">{item.name}</p>
               <div className="flex items-baseline gap-2">
-                <span className="text-lg font-bold text-foreground">{item.price.toFixed(2)}</span>
+                <span className="text-lg font-bold text-foreground">{formatPrice(item.price)}</span>
                 <span className="text-xs text-muted-foreground">{item.unit}</span>
               </div>
-              <div className={`flex items-center gap-1 mt-1 text-xs font-semibold ${item.change >= 0 ? "text-green-500" : "text-red-500"}`}>
-                {item.change >= 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-                {item.change >= 0 ? "+" : ""}{item.change.toFixed(1)}%
+              <div
+                className={`mt-1 flex items-center gap-1 text-xs font-semibold ${
+                  item.change >= 0 ? "text-green-500" : "text-red-500"
+                }`}
+              >
+                {item.change >= 0 ? (
+                  <TrendingUp className="h-3 w-3" />
+                ) : (
+                  <TrendingDown className="h-3 w-3" />
+                )}
+                {item.change >= 0 ? "+" : ""}
+                {item.change.toFixed(1)}%
               </div>
             </motion.div>
           ))}

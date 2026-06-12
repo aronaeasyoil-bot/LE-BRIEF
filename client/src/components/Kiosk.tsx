@@ -3,28 +3,48 @@ import { shareLink } from "@/lib/share";
 import { getSiteUrl } from "@/lib/site";
 import { motion } from "framer-motion";
 import { Download, Share2 } from "lucide-react";
+import { useState } from "react";
 import { toast } from "sonner";
 
 interface KioskProps {
   magazines: any[];
 }
 
+const ARCHIVE_BATCH_SIZE = 6;
+
 function getMagazineTitle(magazine: any, lang: string) {
-  return lang === "ar" ? magazine.titleAr || magazine.titleFr : lang === "en" ? magazine.titleEn || magazine.titleFr : magazine.titleFr;
+  return lang === "ar"
+    ? magazine.titleAr || magazine.titleFr
+    : lang === "en"
+      ? magazine.titleEn || magazine.titleFr
+      : magazine.titleFr;
 }
 
 export default function Kiosk({ magazines }: KioskProps) {
   const { lang } = useLanguage();
+  const [visibleArchiveCount, setVisibleArchiveCount] = useState(ARCHIVE_BATCH_SIZE);
 
   if (!magazines || magazines.length === 0) {
     return null;
   }
 
   const latestMagazine = magazines[0];
-  const downloadLabel = lang === "fr" ? "Telecharger PDF" : lang === "ar" ? "تحميل PDF" : "Download PDF";
+  const archiveMagazines = magazines.slice(1);
+  const visibleArchiveMagazines = archiveMagazines.slice(0, visibleArchiveCount);
+  const hasMoreArchiveMagazines = visibleArchiveCount < archiveMagazines.length;
+  const canCollapseArchive = visibleArchiveCount > ARCHIVE_BATCH_SIZE;
+
+  const downloadLabel =
+    lang === "fr" ? "Telecharger PDF" : lang === "ar" ? "تحميل PDF" : "Download PDF";
   const shareLabel = lang === "fr" ? "Partager" : lang === "ar" ? "مشاركة" : "Share";
-  const previousIssuesLabel = lang === "fr" ? "Numeros precedents" : lang === "ar" ? "الاعداد السابقة" : "Previous issues";
+  const archiveLabel = lang === "fr" ? "Archives" : lang === "ar" ? "الأرشيف" : "Archive";
+  const previousIssuesLabel =
+    lang === "fr" ? "Numeros precedents" : lang === "ar" ? "الاعداد السابقة" : "Previous issues";
   const issueLabel = lang === "fr" ? "NUMERO" : lang === "ar" ? "العدد" : "ISSUE";
+  const showMoreArchiveLabel =
+    lang === "fr" ? "Voir toutes les archives" : lang === "ar" ? "عرض كل الأرشيف" : "View all archive";
+  const showLessArchiveLabel =
+    lang === "fr" ? "Masquer les archives" : lang === "ar" ? "اخفاء الأرشيف" : "Hide archive";
 
   const handleShare = async () => {
     const result = await shareLink("native", {
@@ -34,7 +54,13 @@ export default function Kiosk({ magazines }: KioskProps) {
     });
 
     if (result === "copied") {
-      toast.success(lang === "fr" ? "Lien du magazine copie" : lang === "ar" ? "تم نسخ رابط المجلة" : "Magazine link copied");
+      toast.success(
+        lang === "fr"
+          ? "Lien du magazine copie"
+          : lang === "ar"
+            ? "تم نسخ رابط المجلة"
+            : "Magazine link copied",
+      );
     }
   };
 
@@ -84,7 +110,7 @@ export default function Kiosk({ magazines }: KioskProps) {
               <p className="text-sm text-muted-foreground">
                 {new Date(latestMagazine.publishedAt).toLocaleDateString(
                   lang === "ar" ? "ar-SA" : lang === "en" ? "en-US" : "fr-FR",
-                  { year: "numeric", month: "long", day: "numeric" }
+                  { year: "numeric", month: "long", day: "numeric" },
                 )}
               </p>
             </div>
@@ -108,11 +134,17 @@ export default function Kiosk({ magazines }: KioskProps) {
               </button>
             </div>
 
-            {magazines.length > 1 && (
+            {archiveMagazines.length > 0 && (
               <div>
-                <p className="mb-3 text-sm font-semibold text-foreground">{previousIssuesLabel}</p>
-                <div className="grid grid-cols-3 gap-3 sm:grid-cols-4">
-                  {magazines.slice(1, 5).map((magazine, index) => (
+                <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">{archiveLabel}</p>
+                    <p className="text-xs text-muted-foreground">{previousIssuesLabel}</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-6">
+                  {visibleArchiveMagazines.map((magazine, index) => (
                     <motion.a
                       key={magazine.id}
                       href={magazine.pdfUrl}
@@ -123,22 +155,59 @@ export default function Kiosk({ magazines }: KioskProps) {
                       transition={{ delay: index * 0.05 }}
                       className="group"
                     >
-                      <div className="relative overflow-hidden rounded-lg border border-border transition-colors group-hover:border-gold">
-                        {magazine.coverImageUrl ? (
-                          <img
-                            src={magazine.coverImageUrl}
-                            alt={`Issue ${magazine.issueNumber}`}
-                            className="aspect-[3/4] w-full object-cover transition-transform group-hover:scale-105"
-                          />
-                        ) : (
-                          <div className="flex aspect-[3/4] w-full items-center justify-center bg-gradient-to-br from-gold/50 to-primary/50 text-xs font-bold text-white">
-                            N{magazine.issueNumber}
-                          </div>
-                        )}
+                      <div className="space-y-2">
+                        <div className="relative overflow-hidden rounded-lg border border-border transition-colors group-hover:border-gold">
+                          {magazine.coverImageUrl ? (
+                            <img
+                              src={magazine.coverImageUrl}
+                              alt={`Issue ${magazine.issueNumber}`}
+                              className="aspect-[3/4] w-full object-cover transition-transform group-hover:scale-105"
+                            />
+                          ) : (
+                            <div className="flex aspect-[3/4] w-full items-center justify-center bg-gradient-to-br from-gold/50 to-primary/50 text-xs font-bold text-white">
+                              N{magazine.issueNumber}
+                            </div>
+                          )}
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-xs font-semibold uppercase tracking-wide text-gold">
+                            {issueLabel} {magazine.issueNumber}
+                          </p>
+                          <p className="line-clamp-2 text-sm font-medium text-foreground transition-colors group-hover:text-gold">
+                            {getMagazineTitle(magazine, lang)}
+                          </p>
+                        </div>
                       </div>
                     </motion.a>
                   ))}
                 </div>
+
+                {(hasMoreArchiveMagazines || canCollapseArchive) && (
+                  <div className="mt-5 flex flex-wrap gap-3">
+                    {hasMoreArchiveMagazines && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setVisibleArchiveCount((current) =>
+                            Math.min(current + ARCHIVE_BATCH_SIZE, archiveMagazines.length),
+                          )
+                        }
+                        className="rounded-lg border border-gold px-5 py-2 text-sm font-medium text-gold transition-colors hover:bg-gold/10"
+                      >
+                        {showMoreArchiveLabel}
+                      </button>
+                    )}
+                    {canCollapseArchive && (
+                      <button
+                        type="button"
+                        onClick={() => setVisibleArchiveCount(ARCHIVE_BATCH_SIZE)}
+                        className="rounded-lg border border-border px-5 py-2 text-sm font-medium text-foreground transition-colors hover:bg-card"
+                      >
+                        {showLessArchiveLabel}
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </div>

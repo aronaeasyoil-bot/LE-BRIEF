@@ -52,12 +52,17 @@ pnpm db:push
   - meta Open Graph / Twitter
   - JSON-LD `NewsArticle`
 - La soumission Search Console passe par l'API `webmasters` de Google, pas par l'Indexing API.
-- Pour l'activer en production, definir:
+- Pour l'activer en production, definir soit un compte Google proprietaire via OAuth:
+  - `SEARCH_CONSOLE_OAUTH_CLIENT_ID`
+  - `SEARCH_CONSOLE_OAUTH_CLIENT_SECRET`
+  - `SEARCH_CONSOLE_OAUTH_REFRESH_TOKEN`
+  - `SEARCH_CONSOLE_PROPERTY`
+- Ou un compte de service:
   - `SEARCH_CONSOLE_CLIENT_EMAIL`
   - `SEARCH_CONSOLE_PRIVATE_KEY`
   - `SEARCH_CONSOLE_PRIVATE_KEY_ID`
   - `SEARCH_CONSOLE_PROPERTY`
-- Le compte de service Google doit avoir acces a la propriete Search Console ciblee, soit en prefixe d'URL (`https://www.lebrief.energy/`), soit en propriete domaine (`sc-domain:lebrief.energy`).
+- Si vous utilisez le compte de service, il doit avoir acces a la propriete Search Console ciblee, soit en prefixe d'URL (`https://www.lebrief.energy/`), soit en propriete domaine (`sc-domain:lebrief.energy`).
 
 ## Administration
 
