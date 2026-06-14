@@ -11,6 +11,7 @@ const USER_AGENT =
 const INTERNAL_FALLBACK_IMAGE_URL = "/media/lebrief-share-preview.jpeg";
 const ENERGY_PATH_PREFIX = "/business/energy/";
 const MAX_AUTOMATIC_PUBLICATIONS_PER_RUN = 5;
+const AUTOMATION_INTERVAL_MS = 2 * 60 * 60 * 1000;
 
 type ReutersSitemapArticle = {
   keywords: string[];
@@ -42,8 +43,18 @@ type ReutersRunResult = {
   scanned: number;
 };
 
+type ReutersAutomationTriggerResult = {
+  forced: boolean;
+  nextEligibleAt?: string;
+  ran: boolean;
+  reason?: "not_due";
+  result?: ReutersRunResult;
+};
+
+let reutersAutomationInFlight: Promise<ReutersRunResult> | null = null;
+
 function isAutoPublishConfigured() {
-  return Boolean(ENV.openAiApiKey);
+  return Boolean(ENV.openAiApiKey || ENV.forgeApiKey);
 }
 
 function escapeRegExp(value: string) {
@@ -85,6 +96,11 @@ function toDate(value?: string) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return undefined;
   return date;
+}
+
+function toIsoStringFromDate(date?: Date) {
+  if (!date) return undefined;
+  return date.toISOString();
 }
 
 function truncate(value: string, maxLength: number) {
@@ -662,6 +678,46 @@ export async function publishAutomaticSourceItemById(itemId: number) {
     });
     throw error;
   }
+}
+
+async function runReutersEnergyAutomationWithLock() {
+  if (reutersAutomationInFlight) {
+    return reutersAutomationInFlight;
+  }
+
+  reutersAutomationInFlight = runReutersEnergyAutomation().finally(() => {
+    reutersAutomationInFlight = null;
+  });
+
+  return reutersAutomationInFlight;
+}
+
+export async function triggerReutersEnergyAutomation(options?: {
+  force?: boolean;
+}): Promise<ReutersAutomationTriggerResult> {
+  const force = Boolean(options?.force);
+
+  if (!force) {
+    const settings = await getSourceAutomationSettings("reuters");
+    const lastRunAt = toDate(toIsoString(settings.lastRunAt));
+    if (lastRunAt) {
+      const nextEligibleAt = new Date(lastRunAt.getTime() + AUTOMATION_INTERVAL_MS);
+      if (nextEligibleAt.getTime() > Date.now()) {
+        return {
+          forced: false,
+          nextEligibleAt: toIsoStringFromDate(nextEligibleAt),
+          ran: false,
+          reason: "not_due",
+        };
+      }
+    }
+  }
+
+  return {
+    forced: force,
+    ran: true,
+    result: await runReutersEnergyAutomationWithLock(),
+  };
 }
 
 export async function runReutersEnergyAutomation(): Promise<ReutersRunResult> {

@@ -1,4 +1,5 @@
 import { ENV } from "./env";
+import { invokeLLM } from "./llm";
 
 type OpenAIMessage = {
   role: "system" | "user" | "assistant";
@@ -15,6 +16,37 @@ type ChatCompletionResponse = {
     message?: string;
   };
 };
+
+function stringifyMessageContent(content: unknown) {
+  if (typeof content === "string") {
+    return content;
+  }
+
+  if (Array.isArray(content)) {
+    return content
+      .map((part) => {
+        if (typeof part === "string") {
+          return part;
+        }
+
+        if (
+          part &&
+          typeof part === "object" &&
+          "type" in part &&
+          (part as { type?: unknown }).type === "text" &&
+          "text" in part &&
+          typeof (part as { text?: unknown }).text === "string"
+        ) {
+          return (part as { text: string }).text;
+        }
+
+        return JSON.stringify(part);
+      })
+      .join("\n");
+  }
+
+  return JSON.stringify(content);
+}
 
 function extractJsonPayload(content: string) {
   const trimmed = content.trim();
@@ -40,7 +72,20 @@ export async function createOpenAiJsonCompletion<T>(
   },
 ): Promise<T> {
   if (!ENV.openAiApiKey) {
-    throw new Error("OPENAI_API_KEY is not configured");
+    if (!ENV.forgeApiKey) {
+      throw new Error("Neither OPENAI_API_KEY nor BUILT_IN_FORGE_API_KEY is configured");
+    }
+
+    const result = await invokeLLM({
+      messages,
+      responseFormat: { type: "json_object" },
+    });
+    const content = result.choices?.[0]?.message?.content;
+    if (!content) {
+      throw new Error("Fallback LLM response did not include message content");
+    }
+
+    return extractJsonPayload(stringifyMessageContent(content)) as T;
   }
 
   const response = await fetch("https://api.openai.com/v1/chat/completions", {

@@ -1,27 +1,19 @@
 import { ENV } from "./env";
-import { runReutersEnergyAutomation } from "./reutersEnergy";
+import { triggerReutersEnergyAutomation } from "./reutersEnergy";
+
+function isTruthyQueryFlag(value: unknown) {
+  return typeof value === "string" && /^(1|true|yes|on)$/i.test(value);
+}
 
 export function registerAutomationRoutes(app: any) {
   app.get("/api/cron/reuters-energy", async (req: any, res: any) => {
-    if (!ENV.cronSecret) {
-      res.status(503).json({
-        error: "CRON_SECRET is not configured",
-        ok: false,
-      });
-      return;
-    }
-
     const authorization = req.headers?.authorization;
-    if (authorization !== `Bearer ${ENV.cronSecret}`) {
-      res.status(401).json({
-        error: "Unauthorized",
-        ok: false,
-      });
-      return;
-    }
+    const hasValidCronSecret =
+      Boolean(ENV.cronSecret) && authorization === `Bearer ${ENV.cronSecret}`;
+    const force = hasValidCronSecret && isTruthyQueryFlag(req.query?.force);
 
     try {
-      const result = await runReutersEnergyAutomation();
+      const result = await triggerReutersEnergyAutomation({ force });
       res.status(200).json({
         ok: true,
         result,
