@@ -27,7 +27,11 @@ type ArticleLike = {
   excerptFr?: NullableText;
   imageUrl?: NullableText;
   language?: NullableText;
+  metaDescription?: NullableText;
   publishedAt?: Date | null | string;
+  sourceName?: NullableText;
+  sourceUrl?: NullableText;
+  tags?: NullableText;
   titleAr?: NullableText;
   titleEn?: NullableText;
   titleFr?: NullableText;
@@ -294,6 +298,8 @@ function buildArticleJsonLd(article: ArticleLike, title: string, description: st
   const authorName = normalizeOptionalString(article.authorName);
   const categoryName = normalizeOptionalString(article.categoryName);
   const language = pickArticleLanguageCode(article);
+  const keywords = normalizeOptionalString(article.tags);
+  const sourceUrl = toAbsoluteUrl(article.sourceUrl);
 
   return {
     "@context": "https://schema.org",
@@ -314,6 +320,8 @@ function buildArticleJsonLd(article: ArticleLike, title: string, description: st
     headline: title,
     image: [imageUrl],
     inLanguage: language,
+    isBasedOn: sourceUrl,
+    keywords,
     mainEntityOfPage: {
       "@type": "WebPage",
       "@id": toSiteUrl(`/article/${article.id}`),
@@ -326,6 +334,8 @@ function buildArticleJsonLd(article: ArticleLike, title: string, description: st
 function buildArticleFallbackMarkup(article: ArticleLike, title: string, description: string) {
   const authorName = normalizeOptionalString(article.authorName) || SITE_NAME;
   const publishedAt = toIsoDate(article.publishedAt);
+  const sourceName = normalizeOptionalString(article.sourceName);
+  const sourceUrl = toAbsoluteUrl(article.sourceUrl);
   const content = truncateText(
     toPlainText(article.contentFr) || toPlainText(article.contentEn) || toPlainText(article.contentAr) || description,
     1400,
@@ -338,6 +348,7 @@ function buildArticleFallbackMarkup(article: ArticleLike, title: string, descrip
           <h1 style="margin:0 0 16px;font-size:40px;line-height:1.15;">${escapeHtml(title)}</h1>
           <p style="margin:0 0 10px;color:#4b5563;font-size:15px;">${escapeHtml(authorName)}${publishedAt ? ` • ${escapeHtml(publishedAt.slice(0, 10))}` : ""}</p>
           <p style="margin:0 0 20px;color:#374151;font-size:18px;line-height:1.7;">${escapeHtml(description)}</p>
+          ${sourceName && sourceUrl ? `<p style="margin:0 0 20px;color:#1f2937;font-size:15px;line-height:1.7;"><strong>Source initiale :</strong> <a href="${escapeHtml(sourceUrl)}" style="color:#b91c1c;text-decoration:none;">${escapeHtml(sourceName)}</a></p>` : ""}
           <p style="margin:0;color:#111827;font-size:16px;line-height:1.8;">${escapeHtml(content)}</p>
         </article>
       </main>
@@ -354,6 +365,11 @@ export function pickArticleTitle(article: ArticleLike) {
 }
 
 export function pickArticleDescription(article: ArticleLike) {
+  const metaDescription = normalizeOptionalString(article.metaDescription);
+  if (metaDescription) {
+    return truncateText(metaDescription, 260);
+  }
+
   const excerpt =
     normalizeOptionalString(article.excerptFr) ||
     normalizeOptionalString(article.excerptEn) ||

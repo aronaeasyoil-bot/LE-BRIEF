@@ -16,6 +16,13 @@ function getLocalizedField(item: any, field: string, lang: string): string {
   return item[key] || item[`${field}Fr`] || "";
 }
 
+function parseTags(value?: string | null) {
+  return (value || "")
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+}
+
 export default function ArticlePage() {
   const { t, lang, rtl } = useLanguage();
   const params = useParams<{ id: string }>();
@@ -25,10 +32,11 @@ export default function ArticlePage() {
 
   const articleTitle = article ? getLocalizedField(article, "title", lang) : "";
   const articleExcerpt = article ? getLocalizedField(article, "excerpt", lang) : "";
+  const articleTags = parseTags(article?.tags);
   const articleUrl = article ? getSiteUrl(`/article/${article.id}`) : getSiteUrl(`/article/${articleId || ""}`);
 
   usePageMeta({
-    description: articleExcerpt || SITE_DESCRIPTION,
+    description: article?.metaDescription || articleExcerpt || SITE_DESCRIPTION,
     image: article?.imageUrl || PREVIEW_IMAGE_URL,
     path: article ? `/article/${article.id}` : `/article/${articleId}`,
     title: articleTitle || t.article.readMore,
@@ -112,9 +120,42 @@ export default function ArticlePage() {
               {articleExcerpt}
             </p>
 
+            {(article.sourceName || article.sourceUrl) && (
+              <div className="mb-8 rounded-lg border border-border bg-card p-4">
+                <p className="text-sm text-muted-foreground">
+                  <span className="font-semibold text-foreground">Source initiale :</span>{" "}
+                  {article.sourceUrl ? (
+                    <a
+                      href={article.sourceUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="font-medium text-gold hover:underline"
+                    >
+                      {article.sourceName || article.sourceUrl}
+                    </a>
+                  ) : (
+                    <span className="font-medium text-foreground">{article.sourceName}</span>
+                  )}
+                </p>
+              </div>
+            )}
+
             <div className="prose prose-invert mb-10 max-w-none whitespace-pre-line text-base leading-relaxed text-foreground/90">
               {getLocalizedField(article, "content", lang)}
             </div>
+
+            {articleTags.length > 0 && (
+              <div className="mb-10 flex flex-wrap gap-2">
+                {articleTags.map((tag) => (
+                  <span
+                    key={tag}
+                    className="inline-flex items-center rounded-full border border-border bg-secondary px-3 py-1 text-xs font-medium text-foreground"
+                  >
+                    #{tag}
+                  </span>
+                ))}
+              </div>
+            )}
 
             <div className="border-t border-border pt-6">
               <h4 className="mb-3 font-sans text-sm font-semibold text-foreground">{t.article.share}</h4>

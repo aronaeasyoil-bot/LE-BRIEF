@@ -1,7 +1,25 @@
 import { eq, asc, desc, and, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users, articles, categories, events, subscribers, advertisements, magazines } from "../drizzle/schema";
-import type { InsertArticle, InsertCategory, InsertEvent, InsertSubscriber } from "../drizzle/schema";
+import {
+  InsertUser,
+  users,
+  articles,
+  categories,
+  events,
+  subscribers,
+  advertisements,
+  magazines,
+  sourceAutomationSettings,
+  automaticSourceItems,
+} from "../drizzle/schema";
+import type {
+  InsertArticle,
+  InsertAutomaticSourceItem,
+  InsertCategory,
+  InsertEvent,
+  InsertSourceAutomationSettings,
+  InsertSubscriber,
+} from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 // Re-export for use in routers
@@ -164,6 +182,13 @@ export async function getArticleById(id: number) {
   return result.length > 0 ? result[0] : undefined;
 }
 
+export async function getArticleBySourceUrl(sourceUrl: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(articles).where(eq(articles.sourceUrl, sourceUrl)).limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
 export async function getAllArticles() {
   const db = await getDb();
   if (!db) return [];
@@ -187,6 +212,140 @@ export async function deleteArticle(id: number) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   await db.delete(articles).where(eq(articles.id, id));
+}
+
+// ========== AUTOMATED SOURCES ==========
+
+export async function getSourceAutomationSettings(provider: "reuters" = "reuters") {
+  const db = await getDb();
+  const fallback = {
+    id: 0,
+    provider,
+    sourceLabel: "Reuters Energy",
+    sourceUrl: ENV.reutersEnergySourceUrl,
+    autoPublish: ENV.autoPublishReuters,
+    lastRunAt: null,
+    lastSuccessAt: null,
+    lastError: null,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+
+  if (!db) return fallback;
+
+  const result = await db
+    .select()
+    .from(sourceAutomationSettings)
+    .where(eq(sourceAutomationSettings.provider, provider))
+    .limit(1);
+
+  if (result.length > 0) {
+    return result[0];
+  }
+
+  const values: InsertSourceAutomationSettings = {
+    provider,
+    sourceLabel: "Reuters Energy",
+    sourceUrl: ENV.reutersEnergySourceUrl,
+    autoPublish: ENV.autoPublishReuters,
+  };
+
+  await db.insert(sourceAutomationSettings).values(values);
+  const inserted = await db
+    .select()
+    .from(sourceAutomationSettings)
+    .where(eq(sourceAutomationSettings.provider, provider))
+    .limit(1);
+
+  return inserted[0] || fallback;
+}
+
+export async function updateSourceAutomationSettings(
+  provider: "reuters",
+  data: Partial<InsertSourceAutomationSettings>,
+) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  await getSourceAutomationSettings(provider);
+  await db
+    .update(sourceAutomationSettings)
+    .set(data)
+    .where(eq(sourceAutomationSettings.provider, provider));
+
+  return getSourceAutomationSettings(provider);
+}
+
+export async function touchSourceAutomationRunStatus(
+  provider: "reuters",
+  data: {
+    lastError?: string | null;
+    lastRunAt?: Date;
+    lastSuccessAt?: Date | null;
+  },
+) {
+  return updateSourceAutomationSettings(provider, {
+    lastError: data.lastError,
+    lastRunAt: data.lastRunAt,
+    lastSuccessAt: data.lastSuccessAt === undefined ? undefined : data.lastSuccessAt,
+  });
+}
+
+export async function getAutomaticSourceItemById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db
+    .select()
+    .from(automaticSourceItems)
+    .where(eq(automaticSourceItems.id, id))
+    .limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
+export async function getAutomaticSourceItemBySourceUrl(sourceUrl: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db
+    .select()
+    .from(automaticSourceItems)
+    .where(eq(automaticSourceItems.sourceUrl, sourceUrl))
+    .limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
+export async function getAllAutomaticSourceItems(provider: "reuters" = "reuters", limit = 200) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(automaticSourceItems)
+    .where(eq(automaticSourceItems.provider, provider))
+    .orderBy(desc(automaticSourceItems.detectedAt))
+    .limit(limit);
+}
+
+export async function getPendingAutomaticSourceItems(provider: "reuters" = "reuters", limit = 5) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(automaticSourceItems)
+    .where(and(eq(automaticSourceItems.provider, provider), eq(automaticSourceItems.status, "detected")))
+    .orderBy(desc(automaticSourceItems.sourcePublishedAt), desc(automaticSourceItems.detectedAt))
+    .limit(limit);
+}
+
+export async function createAutomaticSourceItem(data: InsertAutomaticSourceItem) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(automaticSourceItems).values(data);
+  return result[0].insertId;
+}
+
+export async function updateAutomaticSourceItem(id: number, data: Partial<InsertAutomaticSourceItem>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(automaticSourceItems).set(data).where(eq(automaticSourceItems.id, id));
 }
 
 // ========== EVENTS ==========

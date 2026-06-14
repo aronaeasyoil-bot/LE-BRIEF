@@ -10,6 +10,7 @@ import CountUpStat from "@/components/CountUpStat";
 import Kiosk from "@/components/Kiosk";
 import AdsCarousel from "@/components/AdsCarousel";
 import PriceWidget from "@/components/PriceWidget";
+import TopSponsorBanner from "@/components/TopSponsorBanner";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useMemo, useState } from "react";
 
@@ -81,6 +82,8 @@ export default function Home() {
       <section className="relative pt-[168px] pb-12 overflow-hidden">
         <Kiosk magazines={displayedMagazines} />
       </section>
+
+      <TopSponsorBanner />
 
       {/* Price Widget */}
       <PriceWidget />

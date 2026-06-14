@@ -52,6 +52,10 @@ export const articles = mysqlTable("articles", {
   categoryId: int("categoryId").notNull(),
   imageUrl: text("imageUrl"),
   authorName: varchar("authorName", { length: 200 }),
+  sourceName: varchar("sourceName", { length: 200 }),
+  sourceUrl: varchar("sourceUrl", { length: 767 }),
+  tags: text("tags"),
+  metaDescription: varchar("metaDescription", { length: 320 }),
   featured: boolean("featured").default(false).notNull(),
   published: boolean("published").default(false).notNull(),
   language: mysqlEnum("language", ["fr", "en", "ar", "all"]).default("all").notNull(),
@@ -115,6 +119,56 @@ export const magazines = mysqlTable("magazines", {
 
 export type Magazine = typeof magazines.$inferSelect;
 export type InsertMagazine = typeof magazines.$inferInsert;
+
+/**
+ * Automated source monitoring settings
+ */
+export const sourceAutomationSettings = mysqlTable("sourceAutomationSettings", {
+  id: int("id").autoincrement().primaryKey(),
+  provider: mysqlEnum("provider", ["reuters"]).notNull().unique(),
+  sourceLabel: varchar("sourceLabel", { length: 200 }).notNull(),
+  sourceUrl: varchar("sourceUrl", { length: 500 }).notNull(),
+  autoPublish: boolean("autoPublish").default(true).notNull(),
+  lastRunAt: timestamp("lastRunAt"),
+  lastSuccessAt: timestamp("lastSuccessAt"),
+  lastError: text("lastError"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type SourceAutomationSettings = typeof sourceAutomationSettings.$inferSelect;
+export type InsertSourceAutomationSettings = typeof sourceAutomationSettings.$inferInsert;
+
+/**
+ * Detected items coming from automated external sources
+ */
+export const automaticSourceItems = mysqlTable("automaticSourceItems", {
+  id: int("id").autoincrement().primaryKey(),
+  provider: mysqlEnum("provider", ["reuters"]).notNull(),
+  sourceSection: varchar("sourceSection", { length: 100 }).notNull(),
+  sourceUrl: varchar("sourceUrl", { length: 767 }).notNull().unique(),
+  sourceTitle: varchar("sourceTitle", { length: 500 }).notNull(),
+  sourceSummary: text("sourceSummary"),
+  sourceKeywords: text("sourceKeywords"),
+  sourcePublishedAt: timestamp("sourcePublishedAt"),
+  sourceMetadataJson: text("sourceMetadataJson"),
+  generatedTitleFr: varchar("generatedTitleFr", { length: 500 }),
+  generatedExcerptFr: text("generatedExcerptFr"),
+  generatedMetaDescription: varchar("generatedMetaDescription", { length: 320 }),
+  generatedTags: text("generatedTags"),
+  generatedImageUrl: text("generatedImageUrl"),
+  publishedArticleId: int("publishedArticleId"),
+  publishedAt: timestamp("publishedAt"),
+  lastAttemptAt: timestamp("lastAttemptAt"),
+  status: mysqlEnum("status", ["detected", "published", "error"]).default("detected").notNull(),
+  errorMessage: text("errorMessage"),
+  detectedAt: timestamp("detectedAt").defaultNow().notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type AutomaticSourceItem = typeof automaticSourceItems.$inferSelect;
+export type InsertAutomaticSourceItem = typeof automaticSourceItems.$inferInsert;
 
 /**
  * Advertisements - rotating ads and banners

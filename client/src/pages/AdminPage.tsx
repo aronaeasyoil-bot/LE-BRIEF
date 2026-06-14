@@ -8,18 +8,23 @@ import AdminFileUploadField from "@/components/AdminFileUploadField";
 import { getAdminLoginUrl } from "@/const";
 import { toast } from "sonner";
 import {
+  AlertTriangle,
   BadgeCheck,
+  Bot,
   Calendar,
   Edit2,
   Eye,
   EyeOff,
+  ExternalLink,
   FileText,
   Image,
   LibraryBig,
   Megaphone,
   Newspaper,
   PenLine,
+  Play,
   Plus,
+  RefreshCw,
   Star,
   Trash2,
 } from "lucide-react";
@@ -27,6 +32,7 @@ import { Button } from "@/components/ui/button";
 
 type Tab =
   | "articles"
+  | "automatic-sources"
   | "events"
   | "ads"
   | "magazine"
@@ -37,6 +43,7 @@ type Tab =
 
 const tabs: { id: Tab; icon: ComponentType<{ className?: string }> }[] = [
   { id: "articles", icon: FileText },
+  { id: "automatic-sources", icon: Bot },
   { id: "events", icon: Calendar },
   { id: "ads", icon: Image },
   { id: "magazine", icon: Newspaper },
@@ -50,6 +57,7 @@ const adminText = {
   fr: {
     tabs: {
       articles: "Articles",
+      "automatic-sources": "Sources automatiques",
       events: "Événements",
       ads: "Publicités",
       magazine: "Magazine",
@@ -108,6 +116,7 @@ const adminText = {
   en: {
     tabs: {
       articles: "Articles",
+      "automatic-sources": "Automatic sources",
       events: "Events",
       ads: "Ads",
       magazine: "Magazine",
@@ -225,6 +234,34 @@ const adminText = {
 
 const getAdminText = (lang: string) => adminText[lang as keyof typeof adminText] || adminText.fr;
 
+const automaticSourcesTabText = {
+  ar: "Ø§Ù„Ù…ØµØ§Ø¯Ø± Ø§Ù„ØªÙ„Ù‚Ø§Ø¦ÙŠØ©",
+  en: "Automatic sources",
+  fr: "Sources automatiques",
+} as const;
+
+const automaticSourcesDescriptionText = {
+  ar: "Ù…Ø±Ø§Ù‚Ø¨Ø© Reuters Energy ÙˆØ§Ù„Ù†Ø´Ø± Ø§Ù„ØªÙ„Ù‚Ø§Ø¦ÙŠ ÙˆØ§Ù„Ø£Ø®Ø·Ø§Ø¡ ÙˆØ§Ù„ØªØ­ÙƒÙ… Ø§Ù„ØªØ­Ø±ÙŠØ±ÙŠ.",
+  en: "Reuters Energy monitoring, automatic publishing, errors and editorial control.",
+  fr: "Surveillance Reuters Energy, publication automatique, erreurs et controle editorial.",
+} as const;
+
+function getTabLabel(lang: string, tab: Tab) {
+  if (tab === "automatic-sources") {
+    return automaticSourcesTabText[lang as keyof typeof automaticSourcesTabText] || automaticSourcesTabText.fr;
+  }
+
+  const admin = getAdminText(lang);
+  return admin.tabs[tab as Exclude<Tab, "automatic-sources">];
+}
+
+function getAutomaticSourcesDescription(lang: string) {
+  return (
+    automaticSourcesDescriptionText[lang as keyof typeof automaticSourcesDescriptionText] ||
+    automaticSourcesDescriptionText.fr
+  );
+}
+
 const mediaLinkText = {
   ar: {
     document: "رابط ملف PDF",
@@ -326,7 +363,7 @@ export default function AdminPage() {
                     }`}
                   >
                     <Icon className="h-4 w-4" />
-                    <span>{admin.tabs[tab.id]}</span>
+                    <span>{getTabLabel(lang, tab.id)}</span>
                   </button>
                 );
               })}
@@ -334,6 +371,12 @@ export default function AdminPage() {
           </div>
 
           {activeTab === "articles" && <ArticlesTab title={admin.tabs.articles} />}
+          {activeTab === "automatic-sources" && (
+            <AutomaticSourcesTab
+              description={getAutomaticSourcesDescription(lang)}
+              title={getTabLabel(lang, "automatic-sources")}
+            />
+          )}
           {activeTab === "events" && <EventsTab />}
           {activeTab === "ads" && <AdsTab title={admin.tabs.ads} description={admin.adsDescription} />}
           {activeTab === "magazine" && <MagazineOverview />}
@@ -666,6 +709,329 @@ function ArticlesTab({ title, categorySlug }: { title: string; categorySlug?: st
               </TableCell>
             </tr>
           ))}
+        </tbody>
+      </DataTable>
+    </>
+  );
+}
+
+function formatDateTime(value: Date | string | null | undefined, lang: string) {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "-";
+  return date.toLocaleString(lang === "ar" ? "ar-SA" : lang === "en" ? "en-US" : "fr-FR", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function AutomaticSourceStatusBadge({ status }: { status: "detected" | "published" | "error" }) {
+  const { lang } = useLanguage();
+  const labels = {
+    ar: {
+      detected: "Ù…ÙƒØªØ´Ù",
+      error: "Ø®Ø·Ø£",
+      published: "Ù…Ù†Ø´ÙˆØ±",
+    },
+    en: {
+      detected: "Detected",
+      error: "Error",
+      published: "Published",
+    },
+    fr: {
+      detected: "Detecte",
+      error: "Erreur",
+      published: "Publie",
+    },
+  } as const;
+  const tones = {
+    detected: "border-amber-500/30 bg-amber-500/10 text-amber-300",
+    error: "border-red-500/30 bg-red-500/10 text-red-300",
+    published: "border-emerald-500/30 bg-emerald-500/10 text-emerald-300",
+  } as const;
+  const text = labels[lang as keyof typeof labels] || labels.fr;
+
+  return (
+    <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium ${tones[status]}`}>
+      {text[status]}
+    </span>
+  );
+}
+
+function AutomaticSourcesTab({ title, description }: { title: string; description: string }) {
+  const { lang } = useLanguage();
+  const admin = getAdminText(lang);
+  const labels = {
+    ar: {
+      article: "Ù…Ù‚Ø§Ù„ LE BRIEF",
+      autoPublish: "ØªÙØ¹ÙŠÙ„ Ø§Ù„Ù†Ø´Ø± Ø§Ù„ØªÙ„Ù‚Ø§Ø¦ÙŠ",
+      detected: "Ø§Ù„Ø¹Ù†Ø§ØµØ± Ø§Ù„Ù…ÙƒØªØ´ÙØ©",
+      error: "Ø£Ø®Ø·Ø§Ø¡",
+      lastError: "Ø¢Ø®Ø± Ø®Ø·Ø£",
+      lastRun: "Ø¢Ø®Ø± ØªØ´ØºÙŠÙ„",
+      lastSuccess: "Ø¢Ø®Ø± ØªÙ†ÙÙŠØ° Ù†Ø§Ø¬Ø­",
+      noItems: "Ù„Ø§ ØªÙˆØ¬Ø¯ Ø¹Ù†Ø§ØµØ± Ù…ÙƒØªØ´ÙØ© Ø­Ø§Ù„ÙŠØ§Ù‹.",
+      originalSource: "Ø§Ù„Ù…ØµØ¯Ø± Ø§Ù„Ø£ØµÙ„ÙŠ",
+      publish: "Ù†Ø´Ø±",
+      published: "Ø§Ù„Ø¹Ù†Ø§ØµØ± Ø§Ù„Ù…Ù†Ø´ÙˆØ±Ø©",
+      refresh: "ØªØ­Ù„ÙŠÙ„ Ø§Ù„Ù…ØµØ¯Ø± Ø§Ù„Ø¢Ù†",
+      source: "Ø§Ù„Ù…ØµØ¯Ø±",
+      sourceArticle: "Ø¹Ù†ÙˆØ§Ù† Reuters",
+      sourceDate: "ØªØ§Ø±ÙŠØ® Reuters",
+      status: "Ø§Ù„Ø­Ø§Ù„Ø©",
+      summary: "Ù…Ù„Ø®Øµ Ø§Ù„ØªÙ†ÙÙŠØ°",
+      updated: "Ø¢Ø®Ø± ØªØ­Ø¯ÙŠØ«",
+      viewArticle: "Ø¹Ø±Ø¶ Ø§Ù„Ù…Ù‚Ø§Ù„",
+    },
+    en: {
+      article: "LE BRIEF article",
+      autoPublish: "Enable auto publish",
+      detected: "Detected items",
+      error: "Errors",
+      lastError: "Last error",
+      lastRun: "Last run",
+      lastSuccess: "Last success",
+      noItems: "No detected items yet.",
+      originalSource: "Original source",
+      publish: "Publish",
+      published: "Published items",
+      refresh: "Scan source now",
+      source: "Source",
+      sourceArticle: "Reuters title",
+      sourceDate: "Reuters date",
+      status: "Status",
+      summary: "Execution summary",
+      updated: "Updated",
+      viewArticle: "View article",
+    },
+    fr: {
+      article: "Article LE BRIEF",
+      autoPublish: "Activer la publication automatique",
+      detected: "Elements detectes",
+      error: "Erreurs",
+      lastError: "Derniere erreur",
+      lastRun: "Dernier passage",
+      lastSuccess: "Dernier succes",
+      noItems: "Aucun element detecte pour le moment.",
+      originalSource: "Source originale",
+      publish: "Publier",
+      published: "Elements publies",
+      refresh: "Analyser la source maintenant",
+      source: "Source",
+      sourceArticle: "Titre Reuters",
+      sourceDate: "Date Reuters",
+      status: "Statut",
+      summary: "Resume d'execution",
+      updated: "Mise a jour",
+      viewArticle: "Voir l'article",
+    },
+  } as const;
+  const text = labels[lang as keyof typeof labels] || labels.fr;
+  const { data: items = [] } = trpc.automaticSources.list.useQuery();
+  const { data: settings } = trpc.automaticSources.settings.useQuery();
+  const utils = trpc.useUtils();
+  const scanMutation = trpc.automaticSources.scanNow.useMutation({
+    onSuccess: async (result) => {
+      toast.success(
+        `${text.detected}: ${result.detected} | ${text.published}: ${result.published} | ${text.error}: ${result.errors}`,
+      );
+      await utils.automaticSources.list.invalidate();
+      await utils.automaticSources.settings.invalidate();
+    },
+    onError: (error) => toast.error(error.message),
+  });
+  const updateSettingsMutation = trpc.automaticSources.updateSettings.useMutation({
+    onSuccess: async () => {
+      toast.success(lang === "en" ? "Settings updated" : lang === "ar" ? "ØªÙ… ØªØ­Ø¯ÙŠØ« Ø§Ù„Ø¥Ø¹Ø¯Ø§Ø¯Ø§Øª" : "Parametres mis a jour");
+      await utils.automaticSources.settings.invalidate();
+    },
+    onError: (error) => toast.error(error.message),
+  });
+  const publishMutation = trpc.automaticSources.publishOne.useMutation({
+    onSuccess: async () => {
+      toast.success(lang === "en" ? "Article published" : lang === "ar" ? "ØªÙ… Ù†Ø´Ø± Ø§Ù„Ù…Ù‚Ø§Ù„" : "Article publie");
+      await utils.automaticSources.list.invalidate();
+      await utils.articles.all.invalidate();
+      await utils.articles.published.invalidate();
+      await utils.articles.featured.invalidate();
+      await utils.automaticSources.settings.invalidate();
+    },
+    onError: (error) => toast.error(error.message),
+  });
+
+  const summary = useMemo(() => {
+    return items.reduce(
+      (accumulator, item) => {
+        if (item.status === "published") accumulator.published += 1;
+        if (item.status === "detected") accumulator.detected += 1;
+        if (item.status === "error") accumulator.errors += 1;
+        return accumulator;
+      },
+      { detected: 0, errors: 0, published: 0 },
+    );
+  }, [items]);
+
+  return (
+    <>
+      <SectionHeader title={title} description={description} />
+
+      <div className="mb-6 grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.7fr)_minmax(320px,1fr)]">
+        <div className="rounded-lg border border-border bg-card p-5">
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-gold">{text.summary}</p>
+          <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div>
+              <p className="text-sm text-muted-foreground">{text.detected}</p>
+              <p className="mt-1 text-2xl font-bold text-foreground">{summary.detected}</p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">{text.published}</p>
+              <p className="mt-1 text-2xl font-bold text-foreground">{summary.published}</p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">{text.error}</p>
+              <p className="mt-1 text-2xl font-bold text-foreground">{summary.errors}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded-lg border border-border bg-card p-5">
+          <div className="flex flex-col gap-4">
+            <div>
+              <p className="text-sm text-muted-foreground">{text.source}</p>
+              <a
+                href={settings?.sourceUrl || "https://www.reuters.com/business/energy/"}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-1 inline-flex items-center gap-2 text-sm font-medium text-gold hover:underline"
+              >
+                Reuters Energy
+                <ExternalLink className="h-4 w-4" />
+              </a>
+            </div>
+
+            <label className="flex items-center gap-3 text-sm text-foreground">
+              <input
+                type="checkbox"
+                checked={Boolean(settings?.autoPublish)}
+                disabled={updateSettingsMutation.isPending}
+                onChange={(event) => updateSettingsMutation.mutate({ autoPublish: event.target.checked })}
+              />
+              {text.autoPublish}
+            </label>
+
+            <div className="grid grid-cols-1 gap-2 text-sm text-muted-foreground">
+              <p>
+                <span className="text-foreground">{text.lastRun}:</span> {formatDateTime(settings?.lastRunAt, lang)}
+              </p>
+              <p>
+                <span className="text-foreground">{text.lastSuccess}:</span> {formatDateTime(settings?.lastSuccessAt, lang)}
+              </p>
+            </div>
+
+            {settings?.lastError && (
+              <div className="rounded-md border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm text-red-200">
+                <div className="mb-1 flex items-center gap-2 font-medium">
+                  <AlertTriangle className="h-4 w-4" />
+                  <span>{text.lastError}</span>
+                </div>
+                <p className="text-red-200/90">{settings.lastError}</p>
+              </div>
+            )}
+
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => scanMutation.mutate()}
+              disabled={scanMutation.isPending}
+            >
+              <RefreshCw className={`mr-2 h-4 w-4 ${scanMutation.isPending ? "animate-spin" : ""}`} />
+              {text.refresh}
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      <DataTable>
+        <thead className="bg-secondary">
+          <tr>
+            <TableHead>{text.sourceArticle}</TableHead>
+            <TableHead>{text.status}</TableHead>
+            <TableHead>{text.sourceDate}</TableHead>
+            <TableHead>{text.originalSource}</TableHead>
+            <TableHead>{text.article}</TableHead>
+            <TableHead>{text.updated}</TableHead>
+            <TableHead>{admin.actions}</TableHead>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-border">
+          {items.length === 0 ? (
+            <tr>
+              <TableCell className="text-foreground" colSpan={7}>
+                {text.noItems}
+              </TableCell>
+            </tr>
+          ) : (
+            items.map((item) => (
+              <tr key={item.id} className="hover:bg-secondary/50">
+                <TableCell className="max-w-[300px]">
+                  <div className="space-y-1">
+                    <p className="font-medium text-foreground">{item.generatedTitleFr || item.sourceTitle}</p>
+                    {item.errorMessage && <p className="line-clamp-2 text-xs text-red-300">{item.errorMessage}</p>}
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <AutomaticSourceStatusBadge status={item.status} />
+                </TableCell>
+                <TableCell>{formatDateTime(item.sourcePublishedAt, lang)}</TableCell>
+                <TableCell>
+                  <a
+                    href={item.sourceUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1 text-foreground hover:text-gold"
+                  >
+                    Reuters
+                    <ExternalLink className="h-3.5 w-3.5" />
+                  </a>
+                </TableCell>
+                <TableCell>
+                  {item.publishedArticleId ? (
+                    <a
+                      href={`/article/${item.publishedArticleId}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1 text-foreground hover:text-gold"
+                    >
+                      {text.viewArticle}
+                      <ExternalLink className="h-3.5 w-3.5" />
+                    </a>
+                  ) : (
+                    "-"
+                  )}
+                </TableCell>
+                <TableCell>{formatDateTime(item.updatedAt, lang)}</TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-2">
+                    {!item.publishedArticleId && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => publishMutation.mutate({ itemId: item.id })}
+                        disabled={publishMutation.isPending}
+                      >
+                        <Play className="mr-2 h-3.5 w-3.5" />
+                        {text.publish}
+                      </Button>
+                    )}
+                  </div>
+                </TableCell>
+              </tr>
+            ))
+          )}
         </tbody>
       </DataTable>
     </>
@@ -1259,8 +1625,12 @@ function TableHead({ children }: { children: ReactNode }) {
   return <th className="px-4 py-3 text-left font-medium text-foreground">{children}</th>;
 }
 
-function TableCell({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return <td className={`px-4 py-3 text-muted-foreground ${className}`}>{children}</td>;
+function TableCell({ children, className = "", colSpan }: { children: ReactNode; className?: string; colSpan?: number }) {
+  return (
+    <td className={`px-4 py-3 text-muted-foreground ${className}`} colSpan={colSpan}>
+      {children}
+    </td>
+  );
 }
 
 function Status({

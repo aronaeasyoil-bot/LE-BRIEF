@@ -21,7 +21,11 @@ describe("seo helpers", () => {
       excerptFr: "Resume de test",
       id: 42,
       imageUrl: "/manus-storage/le-brief/images/test.jpg",
+      metaDescription: "Meta description de test",
       publishedAt: "2026-06-05T00:00:00.000Z",
+      sourceName: "Reuters",
+      sourceUrl: "https://www.reuters.com/business/energy/test-source/",
+      tags: "energie, afrique",
       titleFr: "Article test",
       updatedAt: "2026-06-05T12:00:00.000Z",
     });
@@ -34,6 +38,9 @@ describe("seo helpers", () => {
     expect(html).toContain("Awa Ndiaye");
     expect(html).toContain('property="article:published_time"');
     expect(html).toContain('rel="alternate"');
+    expect(html).toContain("Meta description de test");
+    expect(html).toContain("Source initiale");
+    expect(html).toContain("https://www.reuters.com/business/energy/test-source/");
   });
 
   it("builds a sitemap containing canonical URLs", () => {

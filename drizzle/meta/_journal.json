@@ -29,6 +29,13 @@
       "when": 1778710188002,
       "tag": "0003_premium_goliath",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "5",
+      "when": 1781467082321,
+      "tag": "0004_dry_sphinx",
+      "breakpoints": true
     }
   ]
 }

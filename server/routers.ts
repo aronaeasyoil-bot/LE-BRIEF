@@ -1,6 +1,7 @@
 import { COOKIE_NAME, ONE_YEAR_MS } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { uploadAdminFile } from "./_core/fileUpload";
+import { publishAutomaticSourceItemById, runReutersEnergyAutomation } from "./_core/reutersEnergy";
 import { sdk } from "./_core/sdk";
 import { submitSearchConsoleSitemaps } from "./_core/searchConsole";
 import { systemRouter } from "./_core/systemRouter";
@@ -24,6 +25,9 @@ import {
   updateEvent,
   deleteEvent,
   addSubscriber,
+  getAllAutomaticSourceItems,
+  getSourceAutomationSettings,
+  updateSourceAutomationSettings,
 } from "./db";
 import { desc, eq, asc } from "drizzle-orm";
 import { magazines, advertisements } from "../drizzle/schema";
@@ -49,6 +53,10 @@ function normalizeArticleRecord(article: any) {
     ...article,
     authorName: normalizeOptionalText(article.authorName),
     imageUrl: normalizeOptionalText(article.imageUrl),
+    metaDescription: normalizeOptionalText(article.metaDescription),
+    sourceName: normalizeOptionalText(article.sourceName),
+    sourceUrl: normalizeOptionalText(article.sourceUrl),
+    tags: normalizeOptionalText(article.tags),
   };
 }
 
@@ -207,6 +215,10 @@ export const appRouter = router({
         categoryId: z.number(),
         imageUrl: z.string().optional(),
         authorName: z.string().optional(),
+        sourceName: z.string().optional(),
+        sourceUrl: z.string().optional(),
+        tags: z.string().optional(),
+        metaDescription: z.string().optional(),
         featured: z.boolean().optional(),
         published: z.boolean().optional(),
         language: z.enum(["fr", "en", "ar", "all"]).optional(),
@@ -219,9 +231,13 @@ export const appRouter = router({
           authorName: normalizeOptionalText(input.authorName),
           featured: input.featured ?? false,
           imageUrl: normalizeOptionalText(input.imageUrl),
+          metaDescription: normalizeOptionalText(input.metaDescription),
           published: isPublished,
           language: input.language ?? "all",
           publishedAt: isPublished ? input.publishedAt ?? new Date() : input.publishedAt,
+          sourceName: normalizeOptionalText(input.sourceName),
+          sourceUrl: normalizeOptionalText(input.sourceUrl),
+          tags: normalizeOptionalText(input.tags),
         });
         if (isPublished) {
           await syncArticleSeoAutomation();
@@ -243,6 +259,10 @@ export const appRouter = router({
         categoryId: z.number().optional(),
         imageUrl: z.string().optional(),
         authorName: z.string().optional(),
+        sourceName: z.string().optional(),
+        sourceUrl: z.string().optional(),
+        tags: z.string().optional(),
+        metaDescription: z.string().optional(),
         featured: z.boolean().optional(),
         published: z.boolean().optional(),
         language: z.enum(["fr", "en", "ar", "all"]).optional(),
@@ -258,7 +278,11 @@ export const appRouter = router({
           ...data,
           authorName: normalizeOptionalText(data.authorName),
           imageUrl: normalizeOptionalText(data.imageUrl),
+          metaDescription: normalizeOptionalText(data.metaDescription),
           publishedAt: data.publishedAt ?? (isPublishingNow ? new Date() : undefined),
+          sourceName: normalizeOptionalText(data.sourceName),
+          sourceUrl: normalizeOptionalText(data.sourceUrl),
+          tags: normalizeOptionalText(data.tags),
         });
         if (shouldSyncSeo) {
           await syncArticleSeoAutomation();
@@ -270,6 +294,57 @@ export const appRouter = router({
       .mutation(async ({ input }) => {
         await deleteArticle(input.id);
         return { success: true };
+      }),
+  }),
+
+  automaticSources: router({
+    list: adminProcedure.query(async () => {
+      return (await getAllAutomaticSourceItems("reuters")).map((item) => ({
+        ...item,
+        errorMessage: normalizeOptionalText(item.errorMessage),
+        generatedExcerptFr: normalizeOptionalText(item.generatedExcerptFr),
+        generatedImageUrl: normalizeOptionalText(item.generatedImageUrl),
+        generatedMetaDescription: normalizeOptionalText(item.generatedMetaDescription),
+        generatedTags: normalizeOptionalText(item.generatedTags),
+        generatedTitleFr: normalizeOptionalText(item.generatedTitleFr),
+        sourceKeywords: normalizeOptionalText(item.sourceKeywords),
+        sourceMetadataJson: normalizeOptionalText(item.sourceMetadataJson),
+        sourceSummary: normalizeOptionalText(item.sourceSummary),
+      }));
+    }),
+    settings: adminProcedure.query(async () => {
+      const settings = await getSourceAutomationSettings("reuters");
+      return {
+        ...settings,
+        lastError: normalizeOptionalText(settings.lastError),
+      };
+    }),
+    updateSettings: adminProcedure
+      .input(
+        z.object({
+          autoPublish: z.boolean(),
+        }),
+      )
+      .mutation(async ({ input }) => {
+        const settings = await updateSourceAutomationSettings("reuters", {
+          autoPublish: input.autoPublish,
+        });
+        return {
+          ...settings,
+          lastError: normalizeOptionalText(settings.lastError),
+        };
+      }),
+    scanNow: adminProcedure.mutation(async () => {
+      return runReutersEnergyAutomation();
+    }),
+    publishOne: adminProcedure
+      .input(
+        z.object({
+          itemId: z.number(),
+        }),
+      )
+      .mutation(async ({ input }) => {
+        return publishAutomaticSourceItemById(input.itemId);
       }),
   }),
 

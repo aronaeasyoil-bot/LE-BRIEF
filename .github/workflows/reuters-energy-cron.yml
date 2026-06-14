@@ -1,0 +1,24 @@
+name: Reuters Energy Automation
+
+on:
+  schedule:
+    - cron: "0 */2 * * *"
+  workflow_dispatch:
+
+jobs:
+  run-reuters-energy-automation:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Ensure cron secret exists
+        run: |
+          if [ -z "${{ secrets.LE_BRIEF_CRON_SECRET }}" ]; then
+            echo "Missing GitHub secret LE_BRIEF_CRON_SECRET"
+            exit 1
+          fi
+
+      - name: Trigger LE BRIEF Reuters automation
+        run: |
+          curl --fail --show-error --silent \
+            -H "Authorization: Bearer ${{ secrets.LE_BRIEF_CRON_SECRET }}" \
+            "https://www.lebrief.energy/api/cron/reuters-energy"
