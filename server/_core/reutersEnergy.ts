@@ -275,7 +275,7 @@ function isReutersEnergyUrl(url: string) {
 
 async function loadReutersEnergyArticles() {
   const indexXml = await fetchXml(REUTERS_NEWS_SITEMAP_INDEX_URL);
-  const sitemapUrls = parseSitemapIndexXml(indexXml).slice(0, 3);
+  const sitemapUrls = parseSitemapIndexXml(indexXml);
 
   const nestedXmlDocuments = await Promise.all(sitemapUrls.map((sitemapUrl) => fetchXml(sitemapUrl)));
   const uniqueArticles = new Map<string, ReutersSitemapArticle>();
