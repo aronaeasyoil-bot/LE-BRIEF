@@ -3,6 +3,7 @@ import {
   buildNewsletterUnsubscribeUrl,
   extractEmailsFromText,
   normalizeNewsletterEmail,
+  shouldRetryNewsletterWithResendOnboarding,
   verifyNewsletterUnsubscribeToken,
 } from "./_core/newsletter";
 
@@ -37,5 +38,18 @@ describe("newsletter helpers", () => {
       ),
     ).toBe(true);
   });
-});
 
+  it("detects resend domain verification errors for fallback sending", () => {
+    expect(
+      shouldRetryNewsletterWithResendOnboarding(
+        'Resend send failed (403): {"message":"The lebrief.energy domain is not verified. Please, add and verify your domain on https://resend.com/domains"}',
+      ),
+    ).toBe(true);
+
+    expect(
+      shouldRetryNewsletterWithResendOnboarding(
+        'Resend send failed (429): {"message":"Too many requests"}',
+      ),
+    ).toBe(false);
+  });
+});

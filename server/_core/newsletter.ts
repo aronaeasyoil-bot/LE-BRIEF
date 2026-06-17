@@ -15,6 +15,7 @@ import {
 
 const RESEND_API_BASE_URL = "https://api.resend.com/emails";
 const DEFAULT_FROM_EMAIL = "LE BRIEF <newsletter@lebrief.energy>";
+const RESEND_ONBOARDING_FROM_EMAIL = "LE BRIEF <onboarding@resend.dev>";
 const DEFAULT_RECIPIENT_ANCHOR = "contact@lebrief.energy";
 const EMAIL_REGEX = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi;
 
@@ -444,21 +445,18 @@ function getNewsletterFromEmail() {
   return ENV.newsletterFromEmail || DEFAULT_FROM_EMAIL;
 }
 
-async function sendResendChunk({
-  html,
-  recipients,
-  subject,
-  text,
-}: {
+type ResendChunkPayload = {
   html: string;
   recipients: string[];
   subject: string;
   text: string;
-}) {
+};
+
+async function postResendChunk(from: string, { html, recipients, subject, text }: ResendChunkPayload) {
   const response = await fetch(RESEND_API_BASE_URL, {
     body: JSON.stringify({
       bcc: recipients,
-      from: getNewsletterFromEmail(),
+      from,
       html,
       subject,
       text,
@@ -474,6 +472,34 @@ async function sendResendChunk({
   if (!response.ok) {
     const errorText = await response.text();
     throw new Error(`Resend send failed (${response.status}): ${errorText}`);
+  }
+}
+
+export function shouldRetryNewsletterWithResendOnboarding(errorMessage: string) {
+  const normalized = normalizeText(errorMessage).toLowerCase();
+  return (
+    normalized.includes("domain is not verified") ||
+    normalized.includes("add and verify your domain") ||
+    normalized.includes("verify your domain")
+  );
+}
+
+async function sendResendChunk(payload: ResendChunkPayload) {
+  const preferredFrom = getNewsletterFromEmail();
+
+  try {
+    await postResendChunk(preferredFrom, payload);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (
+      preferredFrom.toLowerCase() !== RESEND_ONBOARDING_FROM_EMAIL.toLowerCase() &&
+      shouldRetryNewsletterWithResendOnboarding(message)
+    ) {
+      await postResendChunk(RESEND_ONBOARDING_FROM_EMAIL, payload);
+      return;
+    }
+
+    throw error;
   }
 }
 
