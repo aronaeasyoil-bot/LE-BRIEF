@@ -174,29 +174,31 @@ export default function Home() {
                 className="lg:col-span-2 group cursor-pointer"
               >
                 <Link href={`/article/${featured[0]?.id}`}>
-                  <div className="relative rounded-lg overflow-hidden bg-card border border-border hover:border-gold transition-colors h-96">
-                    {featured[0]?.imageUrl && (
-                      <img
-                        src={featured[0].imageUrl}
-                        alt={getLocalizedField(featured[0], "title", lang)}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                      />
-                    )}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
-                    <div className="absolute bottom-0 left-0 right-0 p-6">
-                      <div className="inline-block px-3 py-1 bg-primary text-primary-foreground text-xs font-bold rounded mb-4">
+                  <div className="overflow-hidden rounded-lg border border-border bg-card transition-colors hover:border-gold">
+                    <div className="relative aspect-[16/10] min-h-[280px] overflow-hidden bg-card">
+                      {featured[0]?.imageUrl && (
+                        <img
+                          src={featured[0].imageUrl}
+                          alt={getLocalizedField(featured[0], "title", lang)}
+                          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                        />
+                      )}
+                      <div className="absolute left-5 top-5 inline-block rounded bg-primary px-3 py-1 text-xs font-bold text-primary-foreground shadow-lg">
                         {featured[0]?.categoryId === 1 ? t.nav.energy : featured[0]?.categoryId === 2 ? t.nav.oilGas : t.nav.economy}
                       </div>
-                      <h3 className="text-2xl md:text-3xl font-bold text-white leading-tight mb-3">
+                    </div>
+                    <div className="bg-[#05070c] p-6 md:p-7">
+                      <h3 className="max-w-4xl text-2xl font-bold leading-tight text-white md:text-3xl">
                         {getLocalizedField(featured[0], "title", lang)}
                       </h3>
-                      <p className="text-gray-200 text-sm md:text-base line-clamp-2">
+                      <p className="mt-3 max-w-3xl text-sm text-gray-300 md:text-base line-clamp-2">
                         {getLocalizedField(featured[0], "excerpt", lang)}
                       </p>
                       <ArticleEngagementFooter
                         article={featured[0]}
                         className="mt-4"
                         lang={lang}
+                        showMetrics={false}
                         tone="inverse"
                       />
                     </div>
@@ -225,7 +227,7 @@ export default function Home() {
                         <p className="text-xs text-muted-foreground line-clamp-2">
                           {getLocalizedField(article, "excerpt", lang)}
                         </p>
-                        <ArticleEngagementFooter article={article} className="mt-4" lang={lang} />
+                        <ArticleEngagementFooter article={article} className="mt-4" lang={lang} showMetrics={false} />
                       </div>
                     </Link>
                   </motion.div>
@@ -366,7 +368,7 @@ export default function Home() {
                     <p className="text-sm text-muted-foreground line-clamp-3">
                       {getLocalizedField(articles[0], "excerpt", lang)}
                     </p>
-                    <ArticleEngagementFooter article={articles[0]} className="mt-4" lang={lang} />
+                    <ArticleEngagementFooter article={articles[0]} className="mt-4" lang={lang} showMetrics={false} />
                   </div>
                 </Link>
               </motion.div>

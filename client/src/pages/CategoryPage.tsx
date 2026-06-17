@@ -59,7 +59,7 @@ export default function CategoryPage() {
                     <p className="mb-3 line-clamp-2 text-sm text-muted-foreground">
                       {getLocalizedField(article, "excerpt", lang)}
                     </p>
-                    <ArticleEngagementFooter article={article} lang={lang} />
+                    <ArticleEngagementFooter article={article} lang={lang} showMetrics={false} />
                   </Link>
                 </motion.article>
               ))}

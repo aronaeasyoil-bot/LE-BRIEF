@@ -158,9 +158,7 @@ export default function ArticlePage() {
               </div>
             )}
 
-            <div className="mb-10 rounded-3xl border border-border bg-card/60 p-6">
-              <ArticleEngagementFooter article={article} lang={lang} />
-            </div>
+            <ArticleEngagementFooter article={article} className="mb-10" lang={lang} showMetrics={false} />
 
             <div className="border-t border-border pt-6">
               <h4 className="mb-3 font-sans text-sm font-semibold text-foreground">{t.article.share}</h4>
@@ -242,7 +240,7 @@ export default function ArticlePage() {
                       <h4 className="line-clamp-2 text-sm font-semibold text-foreground transition-colors group-hover:text-gold">
                         {getLocalizedField(item, "title", lang)}
                       </h4>
-                      <ArticleEngagementFooter article={item} className="mt-3" lang={lang} />
+                      <ArticleEngagementFooter article={item} className="mt-3" lang={lang} showMetrics={false} />
                     </Link>
                   ))}
               </div>

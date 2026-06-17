@@ -423,8 +423,7 @@ function buildArticleFallbackMarkup(article: ArticleLike, title: string, descrip
   const authorName = normalizeOptionalString(article.authorName) || SITE_NAME;
   const language = pickArticleLanguageCode(article);
   const editionDate = formatArticleFallbackEditionDate(article.publishedAt, language);
-  const labels = getArticleFallbackLabels(language);
-  const metrics = buildArticleFallbackMetrics(article);
+  const editionLabel = language === "ar" ? "الإصدار" : "Edition";
   const publishedAt = toIsoDate(article.publishedAt);
   const sourceName = normalizeOptionalString(article.sourceName);
   const sourceUrl = toAbsoluteUrl(article.sourceUrl);
@@ -443,21 +442,7 @@ function buildArticleFallbackMarkup(article: ArticleLike, title: string, descrip
           ${sourceName && sourceUrl ? `<p style="margin:0 0 20px;color:#1f2937;font-size:15px;line-height:1.7;"><strong>Source initiale :</strong> <a href="${escapeHtml(sourceUrl)}" style="color:#b91c1c;text-decoration:none;">${escapeHtml(sourceName)}</a></p>` : ""}
           <p style="margin:0;color:#111827;font-size:16px;line-height:1.8;">${escapeHtml(content)}</p>
           <div style="margin:32px 0 0;padding-top:24px;border-top:1px solid #e5e7eb;">
-            ${editionDate ? `<p style="margin:0 0 16px;color:#4b5563;font-size:14px;font-weight:600;">${escapeHtml(labels.edition)} ${escapeHtml(editionDate)}</p>` : ""}
-            <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;border:1px solid #e5e7eb;border-radius:24px;padding:16px;background:#f8fafc;">
-              <div style="min-width:0;border-radius:16px;padding:8px 10px;text-align:center;">
-                <div style="color:#2563eb;font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;">&#128065; ${escapeHtml(labels.views)}</div>
-                <div style="margin-top:6px;color:#111827;font-size:18px;font-weight:700;">${escapeHtml(metrics.views)}</div>
-              </div>
-              <div style="min-width:0;border-radius:16px;padding:8px 10px;text-align:center;">
-                <div style="color:#16a34a;font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;">&#128257; ${escapeHtml(labels.shares)}</div>
-                <div style="margin-top:6px;color:#111827;font-size:18px;font-weight:700;">${escapeHtml(metrics.shares)}</div>
-              </div>
-              <div style="min-width:0;border-radius:16px;padding:8px 10px;text-align:center;">
-                <div style="color:#dc2626;font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;">&#10084; ${escapeHtml(labels.likes)}</div>
-                <div style="margin-top:6px;color:#111827;font-size:18px;font-weight:700;">${escapeHtml(metrics.likes)}</div>
-              </div>
-            </div>
+            ${editionDate ? `<p style="margin:0;color:#4b5563;font-size:14px;font-weight:600;">${escapeHtml(editionLabel)} ${escapeHtml(editionDate)}</p>` : ""}
           </div>
         </article>
       </main>

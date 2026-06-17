@@ -11,12 +11,13 @@ type ArticleEngagementFooterProps = {
   article: ArticleEngagementSource;
   className?: string;
   lang: string;
+  showMetrics?: boolean;
   tone?: "default" | "inverse";
 };
 
 const labels = {
   ar: {
-    edition: "إصدار",
+    edition: "الإصدار",
     likes: "إعجاب",
     shares: "مشاركة",
     views: "مشاهدات",
@@ -39,6 +40,7 @@ export default function ArticleEngagementFooter({
   article,
   className,
   lang,
+  showMetrics = true,
   tone = "default",
 }: ArticleEngagementFooterProps) {
   const text = labels[lang as keyof typeof labels] || labels.fr;
@@ -62,68 +64,64 @@ export default function ArticleEngagementFooter({
         </div>
       ) : null}
 
-      <div
-        className={cn(
-          "grid grid-cols-3 gap-2 rounded-2xl border px-3 py-3",
-          inverse
-            ? "border-white/10 bg-black/35 backdrop-blur-sm"
-            : "border-border/70 bg-card/70",
-        )}
-      >
-        <MetricItem
-          icon={<Eye className="h-4 w-4 text-blue-400" />}
-          label={text.views}
-          tone={tone}
-          value={formatArticleMetric(metrics.views)}
-        />
-        <MetricItem
-          icon={<Share2 className="h-4 w-4 text-green-400" />}
-          label={text.shares}
-          tone={tone}
-          value={formatArticleMetric(metrics.shares)}
-        />
-        <MetricItem
-          icon={<Heart className="h-4 w-4 text-red-400" />}
-          label={text.likes}
-          tone={tone}
-          value={formatArticleMetric(metrics.likes)}
-        />
-      </div>
+      {showMetrics ? (
+        <div
+          className={cn(
+            "grid grid-cols-3 gap-2 rounded-2xl border px-3 py-3",
+            inverse
+              ? "border-white/10 bg-black/35 backdrop-blur-sm"
+              : "border-border/70 bg-card/70",
+          )}
+        >
+          <MetricItem
+            icon={<Eye className="h-4 w-4 text-blue-400" />}
+            srLabel={text.views}
+            tone={tone}
+            value={formatArticleMetric(metrics.views)}
+          />
+          <MetricItem
+            icon={<Share2 className="h-4 w-4 text-green-400" />}
+            srLabel={text.shares}
+            tone={tone}
+            value={formatArticleMetric(metrics.shares)}
+          />
+          <MetricItem
+            icon={<Heart className="h-4 w-4 text-red-400" />}
+            srLabel={text.likes}
+            tone={tone}
+            value={formatArticleMetric(metrics.likes)}
+          />
+        </div>
+      ) : null}
     </div>
   );
 }
 
 function MetricItem({
   icon,
-  label,
+  srLabel,
   tone,
   value,
 }: {
   icon: React.ReactNode;
-  label: string;
+  srLabel: string;
   tone: "default" | "inverse";
   value: string;
 }) {
   return (
-    <div className="flex min-w-0 items-center justify-center gap-2 rounded-xl px-2 py-1.5">
+    <div
+      aria-label={srLabel}
+      className="flex min-w-0 items-center justify-center gap-2 rounded-xl px-2 py-1.5"
+      title={srLabel}
+    >
       <span className="shrink-0">{icon}</span>
-      <div className="min-w-0">
-        <div
-          className={cn(
-            "text-[11px] uppercase tracking-[0.18em]",
-            tone === "inverse" ? "text-white/50" : "text-muted-foreground/80",
-          )}
-        >
-          {label}
-        </div>
-        <div
-          className={cn(
-            "text-sm font-semibold",
-            tone === "inverse" ? "text-white" : "text-foreground",
-          )}
-        >
-          {value}
-        </div>
+      <div
+        className={cn(
+          "text-sm font-semibold",
+          tone === "inverse" ? "text-white" : "text-foreground",
+        )}
+      >
+        {value}
       </div>
     </div>
   );
