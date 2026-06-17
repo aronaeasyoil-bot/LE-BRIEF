@@ -38,7 +38,7 @@ type GeneratedArticleDraft = {
 
 type LicensedImageMatch = {
   alt: string;
-  provider: "pexels" | "unsplash";
+  provider: "pexels" | "unsplash" | "wikimedia";
   remoteUrl: string;
 };
 
@@ -609,6 +609,60 @@ async function searchUnsplashImage(query: string) {
   };
 }
 
+async function searchWikimediaCommonsImage(query: string) {
+  const url = new URL("https://commons.wikimedia.org/w/api.php");
+  url.searchParams.set("action", "query");
+  url.searchParams.set("generator", "search");
+  url.searchParams.set("gsrsearch", query);
+  url.searchParams.set("gsrlimit", "5");
+  url.searchParams.set("prop", "imageinfo");
+  url.searchParams.set("iiprop", "url|extmetadata");
+  url.searchParams.set("iiurlwidth", "1400");
+  url.searchParams.set("format", "json");
+
+  const response = await fetch(url, {
+    headers: {
+      "user-agent": USER_AGENT,
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Wikimedia request failed (${response.status})`);
+  }
+
+  const payload = (await response.json()) as {
+    query?: {
+      pages?: Record<
+        string,
+        {
+          title?: string;
+          imageinfo?: Array<{
+            thumburl?: string;
+            url?: string;
+          }>;
+        }
+      >;
+    };
+  };
+
+  const pages = Object.values(payload.query?.pages || {});
+  for (const page of pages) {
+    const info = page.imageinfo?.[0];
+    const remoteUrl = info?.thumburl || info?.url;
+    if (!remoteUrl) {
+      continue;
+    }
+
+    return {
+      alt: page.title || query,
+      provider: "wikimedia" as const,
+      remoteUrl,
+    };
+  }
+
+  return undefined;
+}
+
 async function searchLicensedImageCandidates(
   queries: string[],
 ): Promise<LicensedImageMatch | undefined> {
@@ -621,6 +675,11 @@ async function searchLicensedImageCandidates(
     const unsplashMatch = await searchUnsplashImage(query);
     if (unsplashMatch) {
       return unsplashMatch;
+    }
+
+    const wikimediaMatch = await searchWikimediaCommonsImage(query);
+    if (wikimediaMatch) {
+      return wikimediaMatch;
     }
   }
 
