@@ -34,6 +34,24 @@ const localMagazineFallback = [
 
 const ARTICLE_BATCH_SIZE = 35;
 
+const dailyEditionLiveContent = {
+  fr: {
+    headline: "EN DIRECT - Moyen-Orient: des pétroliers iraniens ont franchi la zone du blocus américain",
+    summary:
+      "L'armée iranienne menace d'une réponse sévère après les attaques israéliennes du mardi 16 juin sur le Liban. En parallèle, un protocole d'accord entre l'Iran et les États-Unis, signé à distance le lundi 15 juin et attendu vendredi en Suisse pour officialisation, ouvre une phase de négociation. Plusieurs éléments du texte ont commencé à circuler, tandis que la levée du blocus américain sur les ports iraniens permet déjà à des pétroliers iraniens de franchir la zone.",
+  },
+  en: {
+    headline: "LIVE - Middle East: Iranian tankers have crossed the US blockade zone",
+    summary:
+      "Iran's military is threatening a severe response after the Israeli attacks of Tuesday, June 16 on Lebanon. At the same time, a memorandum of understanding between Iran and the United States, signed remotely on Monday, June 15 and due to be formalized in Switzerland on Friday, has opened a new negotiation phase. Parts of the text are beginning to circulate, while the lifting of the US blockade on Iranian ports has already allowed Iranian tankers to cross the area.",
+  },
+  ar: {
+    headline: "مباشر - الشرق الأوسط: ناقلات إيرانية عبرت منطقة الحصار الأميركي",
+    summary:
+      "تهدد القوات الإيرانية برد شديد بعد الهجمات الإسرائيلية يوم الثلاثاء 16 يونيو على لبنان. وفي الوقت نفسه، فتح بروتوكول تفاهم بين إيران والولايات المتحدة، وُقع عن بعد يوم الاثنين 15 يونيو ومن المنتظر إضفاء الطابع الرسمي عليه يوم الجمعة في سويسرا، مرحلة جديدة من التفاوض. وقد بدأت بعض بنود النص بالتداول، بينما سمح رفع الحصار الأميركي على الموانئ الإيرانية لناقلات إيرانية بعبور المنطقة بالفعل.",
+  },
+} as const;
+
 export default function Home() {
   const { t, lang, rtl } = useLanguage();
   const { data: featured = [] } = trpc.articles.featured.useQuery({});
@@ -53,6 +71,8 @@ export default function Home() {
     lang === "fr" ? "Voir plus" : lang === "ar" ? "عرض المزيد" : "View more";
   const showLessArticlesLabel =
     lang === "fr" ? "Voir moins" : lang === "ar" ? "عرض اقل" : "Show less";
+
+  const dailyEditionContent = dailyEditionLiveContent[lang as keyof typeof dailyEditionLiveContent] || dailyEditionLiveContent.fr;
 
   return (
     <div className="min-h-screen bg-background" dir={rtl ? "rtl" : "ltr"}>
@@ -103,7 +123,15 @@ export default function Home() {
                 <h2 className="text-2xl md:text-3xl font-bold font-serif text-foreground mb-4">
                   {lang === "fr" ? "Édition du jour" : lang === "ar" ? "الإصدار اليومي" : "Today's Edition"}
                 </h2>
-                <p className="text-muted-foreground text-sm md:text-base leading-relaxed mb-4">
+                <div className="space-y-3 mb-4">
+                  <p className="text-base md:text-xl font-semibold text-foreground leading-snug">
+                    {dailyEditionContent.headline}
+                  </p>
+                  <p className="text-muted-foreground text-sm md:text-base leading-relaxed">
+                    {dailyEditionContent.summary}
+                  </p>
+                </div>
+                <p className="hidden">
                   {lang === "fr" ? "Découvrez nos sélections éditoriales : les actualités majeures, les analyses approfondies et les perspectives stratégiques sur l'énergie, l'économie et les investissements en Afrique et au Moyen-Orient." : lang === "ar" ? "اكتشف اختياراتنا التحريرية: الأخبار الرئيسية والتحليلات المتعمقة والآفاق الاستراتيجية حول الطاقة والاقتصاد والاستثمارات في أفريقيا والشرق الأوسط." : "Discover our editorial selections: major news, in-depth analysis, and strategic perspectives on energy, economy, and investments in Africa and the Middle East."}
                 </p>
                 <div className="flex flex-wrap gap-3">
