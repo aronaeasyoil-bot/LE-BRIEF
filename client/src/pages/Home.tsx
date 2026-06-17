@@ -11,6 +11,7 @@ import Kiosk from "@/components/Kiosk";
 import AdsCarousel from "@/components/AdsCarousel";
 import PriceWidget from "@/components/PriceWidget";
 import TopSponsorBanner from "@/components/TopSponsorBanner";
+import ArticleEngagementFooter from "@/components/ArticleEngagementFooter";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useMemo, useState } from "react";
 
@@ -192,6 +193,12 @@ export default function Home() {
                       <p className="text-gray-200 text-sm md:text-base line-clamp-2">
                         {getLocalizedField(featured[0], "excerpt", lang)}
                       </p>
+                      <ArticleEngagementFooter
+                        article={featured[0]}
+                        className="mt-4"
+                        lang={lang}
+                        tone="inverse"
+                      />
                     </div>
                   </div>
                 </Link>
@@ -218,6 +225,7 @@ export default function Home() {
                         <p className="text-xs text-muted-foreground line-clamp-2">
                           {getLocalizedField(article, "excerpt", lang)}
                         </p>
+                        <ArticleEngagementFooter article={article} className="mt-4" lang={lang} />
                       </div>
                     </Link>
                   </motion.div>
@@ -275,6 +283,7 @@ export default function Home() {
                           <p className="text-xs text-muted-foreground line-clamp-2">
                             {getLocalizedField(article, "excerpt", lang)}
                           </p>
+                          <ArticleEngagementFooter article={article} className="mt-4" lang={lang} />
                         </div>
                       </div>
                     </Link>
@@ -357,6 +366,7 @@ export default function Home() {
                     <p className="text-sm text-muted-foreground line-clamp-3">
                       {getLocalizedField(articles[0], "excerpt", lang)}
                     </p>
+                    <ArticleEngagementFooter article={articles[0]} className="mt-4" lang={lang} />
                   </div>
                 </Link>
               </motion.div>

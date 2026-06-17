@@ -3,6 +3,7 @@ import { trpc } from "@/lib/trpc";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import WhatsAppButton from "@/components/WhatsAppButton";
+import ArticleEngagementFooter from "@/components/ArticleEngagementFooter";
 import { useParams, Link } from "wouter";
 import { motion } from "framer-motion";
 import { ArrowLeft, Share2, Facebook, Twitter, Linkedin, Clock, User, Copy, MessageCircle } from "lucide-react";
@@ -157,6 +158,10 @@ export default function ArticlePage() {
               </div>
             )}
 
+            <div className="mb-10 rounded-3xl border border-border bg-card/60 p-6">
+              <ArticleEngagementFooter article={article} lang={lang} />
+            </div>
+
             <div className="border-t border-border pt-6">
               <h4 className="mb-3 font-sans text-sm font-semibold text-foreground">{t.article.share}</h4>
               <div className="flex flex-wrap gap-3">
@@ -237,6 +242,7 @@ export default function ArticlePage() {
                       <h4 className="line-clamp-2 text-sm font-semibold text-foreground transition-colors group-hover:text-gold">
                         {getLocalizedField(item, "title", lang)}
                       </h4>
+                      <ArticleEngagementFooter article={item} className="mt-3" lang={lang} />
                     </Link>
                   ))}
               </div>
