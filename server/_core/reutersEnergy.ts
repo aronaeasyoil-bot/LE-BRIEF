@@ -1,6 +1,7 @@
 import { getAllCategories, createArticle, getArticleBySourceUrl, getAutomaticSourceItemById, getAutomaticSourceItemBySourceUrl, getPendingAutomaticSourceItems, createAutomaticSourceItem, getSourceAutomationSettings, touchSourceAutomationRunStatus, updateAutomaticSourceItem } from "../db";
 import { submitSearchConsoleSitemaps } from "./searchConsole";
 import { ENV } from "./env";
+import { generateImage } from "./imageGeneration";
 import { createOpenAiJsonCompletion } from "./openai";
 import { storagePut } from "../storage";
 
@@ -33,6 +34,12 @@ type GeneratedArticleDraft = {
   metaDescription: string;
   tags: string[];
   titleSeo: string;
+};
+
+type LicensedImageMatch = {
+  alt: string;
+  provider: "pexels" | "unsplash";
+  remoteUrl: string;
 };
 
 type ReutersRunResult = {
@@ -136,6 +143,62 @@ function sanitizeTags(tags: string[]) {
   return Array.from(uniqueTags);
 }
 
+const IMAGE_SEARCH_STOP_WORDS = new Set([
+  "the",
+  "and",
+  "for",
+  "with",
+  "from",
+  "about",
+  "into",
+  "over",
+  "after",
+  "before",
+  "against",
+  "between",
+  "among",
+  "this",
+  "that",
+  "these",
+  "those",
+  "its",
+  "their",
+  "your",
+  "our",
+  "le",
+  "la",
+  "les",
+  "des",
+  "du",
+  "de",
+  "d",
+  "un",
+  "une",
+  "et",
+  "ou",
+  "sur",
+  "dans",
+  "pour",
+  "par",
+  "aux",
+  "au",
+]);
+
+function normalizeSearchText(value: string) {
+  return value
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
+function tokenizeForImageSearch(value: string) {
+  return normalizeSearchText(sanitizeText(value))
+    .replace(/[^a-z0-9]+/g, " ")
+    .split(/\s+/)
+    .map((token) => token.trim())
+    .filter((token) => token.length > 2 && !IMAGE_SEARCH_STOP_WORDS.has(token));
+}
+
 function sanitizeFilePart(value: string) {
   return value
     .toLowerCase()
@@ -157,7 +220,7 @@ function guessExtension(contentType: string | null, url: string) {
 }
 
 function buildImageFallbackQuery(title: string, keywords: string[], categorySlug: string) {
-  const haystack = `${title} ${keywords.join(" ")} ${categorySlug}`.toLowerCase();
+  const haystack = normalizeSearchText(`${title} ${keywords.join(" ")} ${categorySlug}`);
 
   if (/(solar|renewable|wind|photovolta|electricity|power grid|battery|green energy)/.test(haystack)) {
     return "africa renewable energy solar panels";
@@ -173,6 +236,41 @@ function buildImageFallbackQuery(title: string, keywords: string[], categorySlug
   }
 
   return "energy industry africa";
+}
+
+export function buildReutersImageSearchCandidates(input: {
+  categorySlug: string;
+  imageQuery: string;
+  keywords: string[];
+  sourceSummary?: string;
+  sourceTitle: string;
+}) {
+  const titleTokens = tokenizeForImageSearch(input.sourceTitle).slice(0, 5).join(" ");
+  const keywordTokens = input.keywords
+    .map((keyword) => tokenizeForImageSearch(keyword).join(" "))
+    .filter(Boolean)
+    .slice(0, 5)
+    .join(" ");
+  const summaryTokens = input.sourceSummary
+    ? tokenizeForImageSearch(input.sourceSummary).slice(0, 6).join(" ")
+    : "";
+  const topicQuery = buildImageFallbackQuery(input.sourceTitle, input.keywords, input.categorySlug);
+  const candidates = [
+    sanitizeText(input.imageQuery),
+    `${titleTokens} ${topicQuery}`.trim(),
+    titleTokens,
+    keywordTokens,
+    summaryTokens,
+    topicQuery,
+  ];
+
+  return Array.from(
+    new Set(
+      candidates
+        .map((candidate) => sanitizeText(candidate))
+        .filter((candidate) => candidate.length >= 3),
+    ),
+  );
 }
 
 function normalizeCategorySlug(
@@ -389,7 +487,7 @@ async function generateDraftForReutersArticle(input: {
                 categorySlug: `une valeur parmi: ${categoryOptionsText}`,
                 metaDescription: "145 a 160 caracteres, descriptive, originale",
                 imageQuery:
-                  "requete courte en anglais pour chercher une image libre de droits adaptee au sujet",
+                  "requete courte et tres specifique en anglais pour trouver une image libre de droits adaptee au sujet, basee sur le titre et le secteur",
               },
               rules: [
                 "Ne jamais copier ou paraphraser de longues formulations source",
@@ -464,7 +562,7 @@ async function searchPexelsImage(query: string) {
 
   return {
     alt: photo?.alt || query,
-    provider: "pexels",
+    provider: "pexels" as const,
     remoteUrl,
   };
 }
@@ -506,9 +604,27 @@ async function searchUnsplashImage(query: string) {
 
   return {
     alt: photo?.alt_description || photo?.description || query,
-    provider: "unsplash",
+    provider: "unsplash" as const,
     remoteUrl,
   };
+}
+
+async function searchLicensedImageCandidates(
+  queries: string[],
+): Promise<LicensedImageMatch | undefined> {
+  for (const query of queries) {
+    const pexelsMatch = await searchPexelsImage(query);
+    if (pexelsMatch) {
+      return pexelsMatch;
+    }
+
+    const unsplashMatch = await searchUnsplashImage(query);
+    if (unsplashMatch) {
+      return unsplashMatch;
+    }
+  }
+
+  return undefined;
 }
 
 async function persistRemoteImage(remoteUrl: string, label: string) {
@@ -543,23 +659,40 @@ async function resolveTopicImage(input: {
   categorySlug: string;
   imageQuery: string;
   keywords: string[];
+  sourceSummary?: string;
   sourceTitle: string;
 }) {
-  const query =
-    sanitizeText(input.imageQuery) ||
-    buildImageFallbackQuery(input.sourceTitle, input.keywords, input.categorySlug);
+  const queries = buildReutersImageSearchCandidates(input);
 
   try {
-    const providerMatch = (await searchPexelsImage(query)) || (await searchUnsplashImage(query));
-    if (!providerMatch) {
-      return INTERNAL_FALLBACK_IMAGE_URL;
+    const providerMatch = await searchLicensedImageCandidates(queries);
+    if (providerMatch) {
+      return await persistRemoteImage(providerMatch.remoteUrl, providerMatch.alt);
     }
 
-    return await persistRemoteImage(providerMatch.remoteUrl, providerMatch.alt);
+    if (ENV.forgeApiUrl && ENV.forgeApiKey) {
+      const generated = await generateImage({
+        prompt: [
+          "Photojournalistic editorial image for a French energy news article.",
+          `Subject: ${sanitizeText(input.sourceTitle)}.`,
+          input.sourceSummary ? `Context: ${sanitizeText(input.sourceSummary)}.` : "",
+          `Theme keywords: ${sanitizeText(input.keywords.join(", "))}.`,
+          `Visual style: realistic, high detail, horizontal composition, no text, no logos, no watermark.`,
+          `The image should visually match: ${queries[0] || buildImageFallbackQuery(input.sourceTitle, input.keywords, input.categorySlug)}.`,
+        ]
+          .filter(Boolean)
+          .join(" "),
+      });
+
+      if (generated.url) {
+        return generated.url;
+      }
+    }
   } catch (error) {
     console.error("[Reuters automation] Image selection failed:", error);
-    return INTERNAL_FALLBACK_IMAGE_URL;
   }
+
+  return INTERNAL_FALLBACK_IMAGE_URL;
 }
 
 async function publishDetectedReutersItem(itemId: number) {
@@ -623,6 +756,7 @@ async function publishDetectedReutersItem(itemId: number) {
     categorySlug,
     imageQuery: draft.imageQuery,
     keywords,
+    sourceSummary: item.sourceSummary || undefined,
     sourceTitle: item.sourceTitle,
   });
   const contentFr = sanitizeParagraphs(

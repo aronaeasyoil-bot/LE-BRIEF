@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { parseReutersNewsSitemapXml, parseSitemapIndexXml } from "./_core/reutersEnergy";
+import {
+  buildReutersImageSearchCandidates,
+  parseReutersNewsSitemapXml,
+  parseSitemapIndexXml,
+} from "./_core/reutersEnergy";
 
 describe("Reuters automation parsers", () => {
   it("parses Reuters sitemap indexes", () => {
@@ -52,5 +56,20 @@ describe("Reuters automation parsers", () => {
     expect(article.metadata).toEqual({
       imageUrls: ["https://example.com/image.jpg"],
     });
+  });
+
+  it("builds title-driven image search candidates", () => {
+    const candidates = buildReutersImageSearchCandidates({
+      categorySlug: "petrole-gaz",
+      imageQuery: "oil refinery at sunset",
+      keywords: ["oil", "Nigeria", "refinery"],
+      sourceSummary: "Nigeria refinery output and fuel supply tensions",
+      sourceTitle: "Nigeria boosts refinery output as fuel tensions ease",
+    });
+
+    expect(candidates[0]).toBe("oil refinery at sunset");
+    expect(candidates.some((candidate) => candidate.startsWith("nigeria boosts refinery output"))).toBe(true);
+    expect(candidates).toContain("oil nigeria refinery");
+    expect(candidates).toContain("oil refinery energy industry africa");
   });
 });
