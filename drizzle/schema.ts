@@ -103,6 +103,32 @@ export type Subscriber = typeof subscribers.$inferSelect;
 export type InsertSubscriber = typeof subscribers.$inferInsert;
 
 /**
+ * Newsletter campaigns and weekly drafts
+ */
+export const newsletterCampaigns = mysqlTable("newsletterCampaigns", {
+  id: int("id").autoincrement().primaryKey(),
+  weekKey: varchar("weekKey", { length: 32 }).notNull().unique(),
+  language: mysqlEnum("language", ["fr", "en", "ar"]).default("fr").notNull(),
+  title: varchar("title", { length: 255 }).notNull(),
+  subject: varchar("subject", { length: 255 }).notNull(),
+  previewText: varchar("previewText", { length: 320 }),
+  htmlContent: text("htmlContent").notNull(),
+  textContent: text("textContent").notNull(),
+  articleIds: text("articleIds"),
+  articleCount: int("articleCount").default(0).notNull(),
+  recipientCount: int("recipientCount").default(0).notNull(),
+  sentCount: int("sentCount").default(0).notNull(),
+  status: mysqlEnum("status", ["draft", "sending", "sent", "failed"]).default("draft").notNull(),
+  lastError: text("lastError"),
+  sentAt: timestamp("sentAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type NewsletterCampaign = typeof newsletterCampaigns.$inferSelect;
+export type InsertNewsletterCampaign = typeof newsletterCampaigns.$inferInsert;
+
+/**
  * Magazines - PDF issues published weekly
  */
 export const magazines = mysqlTable("magazines", {

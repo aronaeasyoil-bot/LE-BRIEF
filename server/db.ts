@@ -1,4 +1,4 @@
-import { eq, asc, desc, and, sql } from "drizzle-orm";
+import { eq, asc, desc, and, inArray, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import {
   InsertUser,
@@ -7,6 +7,7 @@ import {
   categories,
   events,
   subscribers,
+  newsletterCampaigns,
   advertisements,
   magazines,
   sourceAutomationSettings,
@@ -19,6 +20,7 @@ import type {
   InsertCategory,
   InsertEvent,
   InsertMarketPrice,
+  InsertNewsletterCampaign,
   InsertSourceAutomationSettings,
   InsertSubscriber,
 } from "../drizzle/schema";
@@ -488,6 +490,93 @@ export async function addSubscriber(data: InsertSubscriber) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   await db.insert(subscribers).values(data).onDuplicateKeyUpdate({ set: { language: data.language } });
+}
+
+export async function getSubscribers(limit = 200) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(subscribers).orderBy(desc(subscribers.createdAt)).limit(limit);
+}
+
+export async function getAllSubscribers(language?: "fr" | "en" | "ar") {
+  const db = await getDb();
+  if (!db) return [];
+
+  const query = db.select().from(subscribers);
+  if (language) {
+    return query.where(eq(subscribers.language, language)).orderBy(desc(subscribers.createdAt));
+  }
+
+  return query.orderBy(desc(subscribers.createdAt));
+}
+
+export async function getExistingSubscriberEmails(emails: string[]) {
+  const db = await getDb();
+  if (!db || emails.length === 0) return [];
+  const rows = await db
+    .select({ email: subscribers.email })
+    .from(subscribers)
+    .where(inArray(subscribers.email, emails));
+  return rows.map((row) => row.email);
+}
+
+export async function bulkUpsertSubscribers(items: InsertSubscriber[]) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  if (items.length === 0) return;
+
+  await db.insert(subscribers).values(items).onDuplicateKeyUpdate({
+    set: {
+      language: sql`values(${subscribers.language})`,
+    },
+  });
+}
+
+export async function deleteSubscriberByEmail(email: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(subscribers).where(eq(subscribers.email, email));
+}
+
+export async function getNewsletterCampaigns(limit = 20) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(newsletterCampaigns).orderBy(desc(newsletterCampaigns.createdAt)).limit(limit);
+}
+
+export async function getNewsletterCampaignById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db
+    .select()
+    .from(newsletterCampaigns)
+    .where(eq(newsletterCampaigns.id, id))
+    .limit(1);
+  return result[0];
+}
+
+export async function getNewsletterCampaignByWeekKey(weekKey: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db
+    .select()
+    .from(newsletterCampaigns)
+    .where(eq(newsletterCampaigns.weekKey, weekKey))
+    .limit(1);
+  return result[0];
+}
+
+export async function createNewsletterCampaign(data: InsertNewsletterCampaign) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(newsletterCampaigns).values(data);
+  return result[0].insertId;
+}
+
+export async function updateNewsletterCampaign(id: number, data: Partial<InsertNewsletterCampaign>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(newsletterCampaigns).set(data).where(eq(newsletterCampaigns.id, id));
 }
 
 // Ads helpers

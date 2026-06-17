@@ -3,6 +3,7 @@ import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { appRouter } from "../routers";
 import { registerAutomationRoutes } from "./automationRoutes";
 import { createContext } from "./context";
+import { registerNewsletterRoutes } from "./newsletterRoutes";
 import { registerOAuthRoutes } from "./oauth";
 import { registerSeoRoutes } from "./seoRoutes";
 import { registerStorageProxy } from "./storageProxy";
@@ -15,6 +16,7 @@ app.use(express.urlencoded({ limit: "50mb", extended: true }));
 registerStorageProxy(app);
 registerSeoRoutes(app);
 registerAutomationRoutes(app);
+registerNewsletterRoutes(app);
 registerOAuthRoutes(app);
 
 app.use(

@@ -5,6 +5,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import Navbar from "@/components/Navbar";
 import AdminFileUploadField from "@/components/AdminFileUploadField";
+import NewsletterAdminTab from "@/components/admin/NewsletterAdminTab";
 import { getAdminLoginUrl } from "@/const";
 import { toast } from "sonner";
 import {
@@ -19,6 +20,7 @@ import {
   FileText,
   Image,
   LibraryBig,
+  Mail,
   Megaphone,
   Newspaper,
   PenLine,
@@ -39,7 +41,8 @@ type Tab =
   | "experts"
   | "chroniques"
   | "nos-publicites"
-  | "gerer-magazine";
+  | "gerer-magazine"
+  | "newsletter";
 
 const tabs: { id: Tab; icon: ComponentType<{ className?: string }> }[] = [
   { id: "articles", icon: FileText },
@@ -51,6 +54,7 @@ const tabs: { id: Tab; icon: ComponentType<{ className?: string }> }[] = [
   { id: "chroniques", icon: PenLine },
   { id: "nos-publicites", icon: Megaphone },
   { id: "gerer-magazine", icon: LibraryBig },
+  { id: "newsletter", icon: Mail },
 ];
 
 const adminText = {
@@ -65,6 +69,7 @@ const adminText = {
       chroniques: "Chroniques",
       "nos-publicites": "Nos Publicités",
       "gerer-magazine": "Gérer Magazine",
+      newsletter: "Newsletter",
     },
     authPrompt: "Connectez-vous pour accéder au panel d'administration.",
     signIn: "Se connecter",
@@ -124,6 +129,7 @@ const adminText = {
       chroniques: "Columns",
       "nos-publicites": "Our Ads",
       "gerer-magazine": "Manage Magazine",
+      newsletter: "Newsletter",
     },
     authPrompt: "Sign in to access the administration panel.",
     signIn: "Sign in",
@@ -182,6 +188,7 @@ const adminText = {
       chroniques: "أعمدة الرأي",
       "nos-publicites": "إعلاناتنا",
       "gerer-magazine": "إدارة المجلة",
+      newsletter: "النشرة الإخبارية",
     },
     authPrompt: "سجّل الدخول للوصول إلى لوحة الإدارة.",
     signIn: "تسجيل الدخول",
@@ -386,6 +393,7 @@ export default function AdminPage() {
             <AdsTab title={admin.tabs["nos-publicites"]} description={admin.ownAdsDescription} />
           )}
           {activeTab === "gerer-magazine" && <MagazinesTab />}
+          {activeTab === "newsletter" && <NewsletterAdminTab />}
         </div>
       </main>
     </div>

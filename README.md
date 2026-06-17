@@ -112,6 +112,24 @@ pnpm db:push
   - `MARKET_PLATTS_10PPM_CIF_NEW_SOURCE_LABEL`
   - `MARKET_PLATTS_10PPM_CIF_NEW_SOURCE_URL`
 
+## Newsletter
+
+- L'inscription `Rester informe` enregistre les emails dans la table `subscribers`.
+- Un onglet `Newsletter` est disponible dans l'admin pour:
+  - importer une liste CSV ou texte
+  - voir les abonnes recents
+  - generer un brouillon hebdomadaire
+  - previsualiser l'email
+  - envoyer la campagne uniquement apres clic manuel sur `Envoyer`
+- Le brouillon hebdomadaire automatique est cree via la route `/api/cron/newsletter-weekly`.
+- La frequence hebdomadaire est fournie par le workflow GitHub `.github/workflows/newsletter-weekly-draft.yml`.
+- Variables d'environnement requises pour l'envoi reel:
+  - `RESEND_API_KEY`
+  - `NEWSLETTER_FROM_EMAIL`
+  - `NEWSLETTER_ANCHOR_RECIPIENT` (optionnel, email visible dans le champ `to` pendant que les abonnes sont places en `bcc`)
+- Tant que `RESEND_API_KEY` et `NEWSLETTER_FROM_EMAIL` ne sont pas definis, l'admin peut preparer les brouillons mais pas envoyer les newsletters.
+- Le lien de desinscription est expose a l'URL `/api/newsletter/unsubscribe`.
+
 ## Administration
 
 - L'acces editorial passe par `https://le-brief-media.vercel.app/admin/login`

@@ -1,0 +1,21 @@
+CREATE TABLE `newsletterCampaigns` (
+	`id` int AUTO_INCREMENT NOT NULL,
+	`weekKey` varchar(32) NOT NULL,
+	`language` enum('fr','en','ar') NOT NULL DEFAULT 'fr',
+	`title` varchar(255) NOT NULL,
+	`subject` varchar(255) NOT NULL,
+	`previewText` varchar(320),
+	`htmlContent` text NOT NULL,
+	`textContent` text NOT NULL,
+	`articleIds` text,
+	`articleCount` int NOT NULL DEFAULT 0,
+	`recipientCount` int NOT NULL DEFAULT 0,
+	`sentCount` int NOT NULL DEFAULT 0,
+	`status` enum('draft','sending','sent','failed') NOT NULL DEFAULT 'draft',
+	`lastError` text,
+	`sentAt` timestamp,
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedAt` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
+	CONSTRAINT `newsletterCampaigns_id` PRIMARY KEY(`id`),
+	CONSTRAINT `newsletterCampaigns_weekKey_unique` UNIQUE(`weekKey`)
+);

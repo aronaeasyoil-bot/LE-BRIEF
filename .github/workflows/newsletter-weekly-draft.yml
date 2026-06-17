@@ -1,0 +1,17 @@
+name: Weekly Newsletter Draft
+
+on:
+  schedule:
+    - cron: "0 7 * * 1"
+  workflow_dispatch:
+
+jobs:
+  generate-weekly-newsletter-draft:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Trigger LE BRIEF weekly newsletter draft
+        run: |
+          curl --fail --show-error --silent \
+            "https://www.lebrief.energy/api/cron/newsletter-weekly"
+

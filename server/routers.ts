@@ -2,6 +2,12 @@ import { COOKIE_NAME, ONE_YEAR_MS } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { uploadAdminFile } from "./_core/fileUpload";
 import { getPublicMarketPrices } from "./_core/marketPrices";
+import {
+  generateWeeklyNewsletterDraft,
+  importSubscribersFromText,
+  isNewsletterSendConfigured,
+  sendNewsletterCampaignById,
+} from "./_core/newsletter";
 import { publishAutomaticSourceItemById, runReutersEnergyAutomation } from "./_core/reutersEnergy";
 import { sdk } from "./_core/sdk";
 import { submitSearchConsoleSitemaps } from "./_core/searchConsole";
@@ -26,7 +32,10 @@ import {
   updateEvent,
   deleteEvent,
   addSubscriber,
+  getAllSubscribers,
   getAllAutomaticSourceItems,
+  getNewsletterCampaigns,
+  getSubscribers,
   getSourceAutomationSettings,
   updateSourceAutomationSettings,
 } from "./db";
@@ -426,6 +435,69 @@ export const appRouter = router({
           language: input.language ?? "fr",
         });
         return { success: true };
+      }),
+    dashboard: adminProcedure.query(async () => {
+      const [allSubscribers, campaigns, recentSubscribers] = await Promise.all([
+        getAllSubscribers(),
+        getNewsletterCampaigns(12),
+        getSubscribers(40),
+      ]);
+
+      return {
+        campaigns: campaigns.map((campaign) => ({
+          ...campaign,
+          articleIds: normalizeOptionalText(campaign.articleIds),
+          lastError: normalizeOptionalText(campaign.lastError),
+          previewText: normalizeOptionalText(campaign.previewText),
+        })),
+        sendConfigured: isNewsletterSendConfigured(),
+        totalSubscribers: allSubscribers.length,
+        subscribers: recentSubscribers,
+      };
+    }),
+    importSubscribers: adminProcedure
+      .input(
+        z.object({
+          language: z.enum(["fr", "en", "ar"]).optional(),
+          rawText: z.string().min(1).max(2_000_000),
+        }),
+      )
+      .mutation(async ({ input }) => {
+        return importSubscribersFromText(input.rawText, {
+          defaultLanguage: input.language ?? "fr",
+        });
+      }),
+    generateWeeklyDraft: adminProcedure
+      .input(
+        z.object({
+          force: z.boolean().optional(),
+        }).optional(),
+      )
+      .mutation(async ({ input }) => {
+        const result = await generateWeeklyNewsletterDraft({
+          force: input?.force ?? false,
+        });
+
+        return {
+          ...result,
+          campaign: result.campaign
+            ? {
+                ...result.campaign,
+                articleIds: normalizeOptionalText(result.campaign.articleIds),
+                lastError: normalizeOptionalText(result.campaign.lastError),
+                previewText: normalizeOptionalText(result.campaign.previewText),
+              }
+            : result.campaign,
+        };
+      }),
+    sendCampaign: adminProcedure
+      .input(
+        z.object({
+          id: z.number(),
+        }),
+      )
+      .mutation(async ({ input }) => {
+        return sendNewsletterCampaignById(input.id);
       }),
   }),
 
