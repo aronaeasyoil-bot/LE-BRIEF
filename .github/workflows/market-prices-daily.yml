@@ -1,0 +1,16 @@
+name: Market Prices Daily Update
+
+on:
+  schedule:
+    - cron: "10 6 * * *"
+  workflow_dispatch:
+
+jobs:
+  update-market-prices:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Trigger LE BRIEF market prices update
+        run: |
+          curl --fail --show-error --silent \
+            "https://www.lebrief.energy/api/cron/market-prices"

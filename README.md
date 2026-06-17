@@ -94,6 +94,23 @@ pnpm db:push
 - La meme valeur doit aussi etre definie cote Vercel dans `CRON_SECRET`.
 - Sur Vercel Hobby, cette approche remplace la cron native, limitee a une execution par jour.
 
+## Automatisation des prix marche
+
+- Le widget de prix de la page d'accueil lit les valeurs depuis la table `marketPrices`.
+- La route cron `/api/cron/market-prices` actualise les donnees au maximum une fois par jour.
+- La frequence quotidienne est fournie par le workflow GitHub `.github/workflows/market-prices-daily.yml`.
+- `CAC 40` et `Gaz Naturel` sont actualises via Yahoo Finance.
+- Les lignes `PLATTS 10 PPM FUJ` et `PLATTS 10 PPM CIF NEW` gardent le dernier prix connu tant qu'aucune source Platts officielle/licenciee n'est configuree.
+- Variables optionnelles pour brancher une source Platts officielle:
+  - `MARKET_PLATTS_10PPM_FUJ_PRICE`
+  - `MARKET_PLATTS_10PPM_FUJ_CHANGE_PERCENT`
+  - `MARKET_PLATTS_10PPM_FUJ_SOURCE_LABEL`
+  - `MARKET_PLATTS_10PPM_FUJ_SOURCE_URL`
+  - `MARKET_PLATTS_10PPM_CIF_NEW_PRICE`
+  - `MARKET_PLATTS_10PPM_CIF_NEW_CHANGE_PERCENT`
+  - `MARKET_PLATTS_10PPM_CIF_NEW_SOURCE_LABEL`
+  - `MARKET_PLATTS_10PPM_CIF_NEW_SOURCE_URL`
+
 ## Administration
 
 - L'acces editorial passe par `https://le-brief-media.vercel.app/admin/login`

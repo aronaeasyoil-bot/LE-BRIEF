@@ -1,7 +1,10 @@
 import { motion } from "framer-motion";
 import { TrendingDown, TrendingUp } from "lucide-react";
+import { trpc } from "@/lib/trpc";
 
 type PriceData = {
+  code?: string;
+  decimals?: number;
   name: string;
   price: number;
   change: number;
@@ -15,23 +18,27 @@ const MARKET_ITEMS: PriceData[] = [
   { name: "Gaz Naturel", price: 3.45, change: -3.1, unit: "USD/MMBtu" },
 ];
 
-function formatPrice(value: number) {
-  const hasDecimals = !Number.isInteger(value);
-
+function formatPrice(value: number, decimals?: number) {
   return new Intl.NumberFormat("fr-FR", {
-    minimumFractionDigits: hasDecimals ? 2 : 0,
-    maximumFractionDigits: hasDecimals ? 2 : 0,
+    minimumFractionDigits: decimals ?? (Number.isInteger(value) ? 0 : 2),
+    maximumFractionDigits: decimals ?? (Number.isInteger(value) ? 0 : 2),
   }).format(value);
 }
 
 export default function PriceWidget() {
+  const { data } = trpc.marketPrices.current.useQuery(undefined, {
+    refetchInterval: 30 * 60 * 1000,
+    staleTime: 15 * 60 * 1000,
+  });
+  const marketItems = data?.length ? data : MARKET_ITEMS;
+
   return (
     <section className="border-b border-border bg-gradient-to-r from-primary/10 to-accent/10 py-6">
       <div className="container">
         <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-          {MARKET_ITEMS.map((item, index) => (
+          {marketItems.map((item, index) => (
             <motion.div
-              key={item.name}
+              key={item.code || item.name}
               initial={{ opacity: 0, y: 10 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
@@ -40,7 +47,7 @@ export default function PriceWidget() {
             >
               <p className="mb-1 text-xs font-medium text-muted-foreground">{item.name}</p>
               <div className="flex items-baseline gap-2">
-                <span className="text-lg font-bold text-foreground">{formatPrice(item.price)}</span>
+                <span className="text-lg font-bold text-foreground">{formatPrice(item.price, item.decimals)}</span>
                 <span className="text-xs text-muted-foreground">{item.unit}</span>
               </div>
               <div

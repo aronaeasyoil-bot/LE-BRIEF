@@ -1,4 +1,4 @@
-import { int, mysqlEnum, mysqlTable, text, timestamp, varchar, boolean } from "drizzle-orm/mysql-core";
+import { boolean, decimal, int, mysqlEnum, mysqlTable, text, timestamp, varchar } from "drizzle-orm/mysql-core";
 
 /**
  * Core user table backing auth flow.
@@ -169,6 +169,28 @@ export const automaticSourceItems = mysqlTable("automaticSourceItems", {
 
 export type AutomaticSourceItem = typeof automaticSourceItems.$inferSelect;
 export type InsertAutomaticSourceItem = typeof automaticSourceItems.$inferInsert;
+
+/**
+ * Daily market indicators displayed in the home price widget
+ */
+export const marketPrices = mysqlTable("marketPrices", {
+  id: int("id").autoincrement().primaryKey(),
+  code: varchar("code", { length: 80 }).notNull().unique(),
+  name: varchar("name", { length: 200 }).notNull(),
+  price: decimal("price", { precision: 14, scale: 4 }).notNull(),
+  changePercent: decimal("changePercent", { precision: 10, scale: 4 }).notNull(),
+  unit: varchar("unit", { length: 40 }).notNull(),
+  decimals: int("decimals").default(2).notNull(),
+  sourceLabel: varchar("sourceLabel", { length: 200 }),
+  sourceUrl: varchar("sourceUrl", { length: 767 }),
+  sortOrder: int("sortOrder").default(0).notNull(),
+  lastUpdatedAt: timestamp("lastUpdatedAt").defaultNow().notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type MarketPrice = typeof marketPrices.$inferSelect;
+export type InsertMarketPrice = typeof marketPrices.$inferInsert;
 
 /**
  * Advertisements - rotating ads and banners

@@ -11,12 +11,14 @@ import {
   magazines,
   sourceAutomationSettings,
   automaticSourceItems,
+  marketPrices,
 } from "../drizzle/schema";
 import type {
   InsertArticle,
   InsertAutomaticSourceItem,
   InsertCategory,
   InsertEvent,
+  InsertMarketPrice,
   InsertSourceAutomationSettings,
   InsertSubscriber,
 } from "../drizzle/schema";
@@ -27,6 +29,7 @@ export { advertisements, magazines };
 
 let _db: ReturnType<typeof drizzle> | null = null;
 let _coreCategoriesSeeded = false;
+let _marketPricesSeeded = false;
 
 const CORE_CATEGORIES: InsertCategory[] = [
   { slug: "energie", nameFr: "Énergie", nameEn: "Energy", nameAr: "الطاقة", icon: "Zap", sortOrder: 10 },
@@ -40,6 +43,53 @@ const CORE_CATEGORIES: InsertCategory[] = [
   { slug: "portraits", nameFr: "Portraits Éco", nameEn: "Eco Portraits", nameAr: "بورتريهات اقتصادية", icon: "UserRound", sortOrder: 90 },
   { slug: "experts", nameFr: "Experts", nameEn: "Experts", nameAr: "خبراء", icon: "BadgeCheck", sortOrder: 100 },
   { slug: "chroniques", nameFr: "Chroniques", nameEn: "Columns", nameAr: "أعمدة الرأي", icon: "PenLine", sortOrder: 110 },
+];
+
+export const DEFAULT_MARKET_PRICES: InsertMarketPrice[] = [
+  {
+    code: "PLATTS_10PPM_FUJ",
+    name: "PLATTS 10 PPM FUJ",
+    price: "1102.0000",
+    changePercent: "2.3000",
+    unit: "$/MT",
+    decimals: 0,
+    sourceLabel: "Dernier prix connu",
+    sourceUrl: null,
+    sortOrder: 10,
+  },
+  {
+    code: "PLATTS_10PPM_CIF_NEW",
+    name: "PLATTS 10 PPM CIF NEW",
+    price: "1102.0000",
+    changePercent: "1.2000",
+    unit: "$/MT",
+    decimals: 0,
+    sourceLabel: "Dernier prix connu",
+    sourceUrl: null,
+    sortOrder: 20,
+  },
+  {
+    code: "CAC40",
+    name: "CAC 40",
+    price: "7850.2500",
+    changePercent: "1.8000",
+    unit: "pts",
+    decimals: 2,
+    sourceLabel: "Yahoo Finance",
+    sourceUrl: "https://finance.yahoo.com/quote/%5EFCHI/",
+    sortOrder: 30,
+  },
+  {
+    code: "NATURAL_GAS",
+    name: "Gaz Naturel",
+    price: "3.4500",
+    changePercent: "-3.1000",
+    unit: "USD/MMBtu",
+    decimals: 2,
+    sourceLabel: "Yahoo Finance",
+    sourceUrl: "https://finance.yahoo.com/quote/NG=F/",
+    sortOrder: 40,
+  },
 ];
 
 export async function getDb() {
@@ -212,6 +262,55 @@ export async function deleteArticle(id: number) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   await db.delete(articles).where(eq(articles.id, id));
+}
+
+// ========== MARKET PRICES ==========
+
+export async function seedMarketPrices() {
+  const db = await getDb();
+  if (!db || _marketPricesSeeded) return;
+
+  for (const item of DEFAULT_MARKET_PRICES) {
+    await db.insert(marketPrices).values(item).onDuplicateKeyUpdate({
+      set: {
+        name: sql`values(${marketPrices.name})`,
+        unit: sql`values(${marketPrices.unit})`,
+        decimals: sql`values(${marketPrices.decimals})`,
+        sourceLabel: sql`values(${marketPrices.sourceLabel})`,
+        sourceUrl: sql`values(${marketPrices.sourceUrl})`,
+        sortOrder: sql`values(${marketPrices.sortOrder})`,
+      },
+    });
+  }
+
+  _marketPricesSeeded = true;
+}
+
+export async function getMarketPrices() {
+  const db = await getDb();
+  if (!db) return DEFAULT_MARKET_PRICES;
+
+  await seedMarketPrices();
+  return db.select().from(marketPrices).orderBy(asc(marketPrices.sortOrder));
+}
+
+export async function upsertMarketPrice(data: InsertMarketPrice) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  await db.insert(marketPrices).values(data).onDuplicateKeyUpdate({
+    set: {
+      name: sql`values(${marketPrices.name})`,
+      price: sql`values(${marketPrices.price})`,
+      changePercent: sql`values(${marketPrices.changePercent})`,
+      unit: sql`values(${marketPrices.unit})`,
+      decimals: sql`values(${marketPrices.decimals})`,
+      sourceLabel: sql`values(${marketPrices.sourceLabel})`,
+      sourceUrl: sql`values(${marketPrices.sourceUrl})`,
+      sortOrder: sql`values(${marketPrices.sortOrder})`,
+      lastUpdatedAt: sql`values(${marketPrices.lastUpdatedAt})`,
+    },
+  });
 }
 
 // ========== AUTOMATED SOURCES ==========

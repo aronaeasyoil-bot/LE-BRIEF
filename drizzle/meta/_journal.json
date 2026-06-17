@@ -36,6 +36,13 @@
       "when": 1781467082321,
       "tag": "0004_dry_sphinx",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "5",
+      "when": 1781676007953,
+      "tag": "0005_hesitant_calypso",
+      "breakpoints": true
     }
   ]
 }

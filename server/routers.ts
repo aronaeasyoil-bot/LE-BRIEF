@@ -1,6 +1,7 @@
 import { COOKIE_NAME, ONE_YEAR_MS } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { uploadAdminFile } from "./_core/fileUpload";
+import { getPublicMarketPrices } from "./_core/marketPrices";
 import { publishAutomaticSourceItemById, runReutersEnergyAutomation } from "./_core/reutersEnergy";
 import { sdk } from "./_core/sdk";
 import { submitSearchConsoleSitemaps } from "./_core/searchConsole";
@@ -98,6 +99,11 @@ async function syncArticleSeoAutomation() {
 
 export const appRouter = router({
   system: systemRouter,
+  marketPrices: router({
+    current: publicProcedure.query(async () => {
+      return getPublicMarketPrices();
+    }),
+  }),
   auth: router({
     me: publicProcedure.query(opts => opts.ctx.user),
     adminLogin: publicProcedure
