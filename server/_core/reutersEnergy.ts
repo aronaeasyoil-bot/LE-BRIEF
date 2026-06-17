@@ -1,4 +1,4 @@
-import { getAllCategories, createArticle, getArticleBySourceUrl, getAutomaticSourceItemById, getAutomaticSourceItemBySourceUrl, getPendingAutomaticSourceItems, createAutomaticSourceItem, getSourceAutomationSettings, touchSourceAutomationRunStatus, updateAutomaticSourceItem } from "../db";
+import { getAllCategories, createArticle, getArticleBySourceUrl, getAutomaticSourceItemById, getAutomaticSourceItemBySourceUrl, getPendingAutomaticSourceItems, createAutomaticSourceItem, getPublishedArticles, getSourceAutomationSettings, touchSourceAutomationRunStatus, updateAutomaticSourceItem } from "../db";
 import { submitSearchConsoleSitemaps } from "./searchConsole";
 import { ENV } from "./env";
 import { generateImage } from "./imageGeneration";
@@ -38,7 +38,7 @@ type GeneratedArticleDraft = {
 
 type LicensedImageMatch = {
   alt: string;
-  provider: "pexels" | "unsplash" | "wikimedia";
+  provider: "google" | "openverse" | "pexels" | "unsplash" | "wikimedia";
   remoteUrl: string;
 };
 
@@ -59,6 +59,32 @@ type ReutersAutomationTriggerResult = {
 };
 
 let reutersAutomationInFlight: Promise<ReutersRunResult> | null = null;
+const recentRemoteImageUrls = new Set<string>();
+
+function rememberImageUrl(url?: string | null) {
+  const normalized = sanitizeText(url || "");
+  if (normalized && normalized !== INTERNAL_FALLBACK_IMAGE_URL) {
+    recentRemoteImageUrls.add(normalized);
+  }
+}
+
+function isFreshRemoteImageUrl(url?: string | null) {
+  const normalized = sanitizeText(url || "");
+  return Boolean(normalized && /^https?:\/\//i.test(normalized) && !recentRemoteImageUrls.has(normalized));
+}
+
+async function seedRecentImageUrlsFromPublishedArticles() {
+  if (recentRemoteImageUrls.size > 0) {
+    return;
+  }
+
+  try {
+    const recentArticles = await getPublishedArticles(200);
+    recentArticles.forEach((article) => rememberImageUrl(article.imageUrl));
+  } catch (error) {
+    console.error("[Reuters automation] Recent image history load failed:", error);
+  }
+}
 
 function isAutoPublishConfigured() {
   return Boolean(ENV.openAiApiKey || ENV.forgeApiKey);
@@ -222,6 +248,21 @@ function guessExtension(contentType: string | null, url: string) {
 function buildImageFallbackQuery(title: string, keywords: string[], categorySlug: string) {
   const haystack = normalizeSearchText(`${title} ${keywords.join(" ")} ${categorySlug}`);
 
+  if (/(artificial intelligence|data center|data centre|ai boom|power plants|electricity demand)/.test(haystack)) {
+    return "data center power plant electricity";
+  }
+  if (/(container|shipping|port|freight|cargo)/.test(haystack)) {
+    return "container port shipping terminal";
+  }
+  if (/(biodiesel|tallow|biofuel|cargill)/.test(haystack)) {
+    return "biodiesel production plant";
+  }
+  if (/(lng|cheniere|gas tanker|gas terminal|liquefied natural gas)/.test(haystack)) {
+    return "LNG tanker terminal";
+  }
+  if (/(stock|inventory|storage|barrel)/.test(haystack) && /(oil|crude|petroleum)/.test(haystack)) {
+    return "crude oil storage tanks";
+  }
   if (/(solar|renewable|wind|photovolta|electricity|power grid|battery|green energy)/.test(haystack)) {
     return "africa renewable energy solar panels";
   }
@@ -535,7 +576,7 @@ async function searchPexelsImage(query: string) {
   const url = new URL("https://api.pexels.com/v1/search");
   url.searchParams.set("query", query);
   url.searchParams.set("orientation", "landscape");
-  url.searchParams.set("per_page", "1");
+  url.searchParams.set("per_page", "5");
 
   const response = await fetch(url, {
     headers: {
@@ -556,7 +597,7 @@ async function searchPexelsImage(query: string) {
       };
     }>;
   };
-  const photo = payload.photos?.[0];
+  const photo = payload.photos?.find((entry) => isFreshRemoteImageUrl(entry.src?.landscape || entry.src?.large));
   const remoteUrl = photo?.src?.landscape || photo?.src?.large;
   if (!remoteUrl) return undefined;
 
@@ -575,7 +616,7 @@ async function searchUnsplashImage(query: string) {
   const url = new URL("https://api.unsplash.com/search/photos");
   url.searchParams.set("query", query);
   url.searchParams.set("orientation", "landscape");
-  url.searchParams.set("per_page", "1");
+  url.searchParams.set("per_page", "5");
   url.searchParams.set("content_filter", "high");
 
   const response = await fetch(url, {
@@ -598,13 +639,94 @@ async function searchUnsplashImage(query: string) {
       };
     }>;
   };
-  const photo = payload.results?.[0];
+  const photo = payload.results?.find((entry) => isFreshRemoteImageUrl(entry.urls?.regular));
   const remoteUrl = photo?.urls?.regular;
   if (!remoteUrl) return undefined;
 
   return {
     alt: photo?.alt_description || photo?.description || query,
     provider: "unsplash" as const,
+    remoteUrl,
+  };
+}
+
+async function searchGoogleCustomImage(query: string) {
+  if (!ENV.googleCustomSearchApiKey || !ENV.googleCustomSearchCx) {
+    return undefined;
+  }
+
+  const url = new URL("https://www.googleapis.com/customsearch/v1");
+  url.searchParams.set("key", ENV.googleCustomSearchApiKey);
+  url.searchParams.set("cx", ENV.googleCustomSearchCx);
+  url.searchParams.set("q", query);
+  url.searchParams.set("searchType", "image");
+  url.searchParams.set("num", "5");
+  url.searchParams.set("safe", "active");
+  url.searchParams.set("imgSize", "large");
+  url.searchParams.set("rights", "cc_publicdomain,cc_attribute,cc_sharealike");
+
+  const response = await fetch(url, {
+    headers: {
+      accept: "application/json",
+      "user-agent": USER_AGENT,
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Google Custom Search request failed (${response.status})`);
+  }
+
+  const payload = (await response.json()) as {
+    items?: Array<{
+      link?: string;
+      title?: string;
+    }>;
+  };
+  const item = payload.items?.find((entry) => isFreshRemoteImageUrl(entry.link));
+  if (!item?.link) {
+    return undefined;
+  }
+
+  return {
+    alt: item.title || query,
+    provider: "google" as const,
+    remoteUrl: item.link,
+  };
+}
+
+async function searchOpenverseImage(query: string) {
+  const url = new URL("https://api.openverse.engineering/v1/images/");
+  url.searchParams.set("q", query);
+  url.searchParams.set("page_size", "10");
+  url.searchParams.set("license_type", "commercial,modification");
+
+  const response = await fetch(url, {
+    headers: {
+      accept: "application/json",
+      "user-agent": USER_AGENT,
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Openverse request failed (${response.status})`);
+  }
+
+  const payload = (await response.json()) as {
+    results?: Array<{
+      thumbnail?: string | null;
+      title?: string | null;
+      url?: string | null;
+    }>;
+  };
+  const item = payload.results?.find((entry) => isFreshRemoteImageUrl(entry.thumbnail || entry.url));
+  const remoteUrl = item?.thumbnail || item?.url;
+  if (!remoteUrl) {
+    return undefined;
+  }
+
+  return {
+    alt: item?.title || query,
+    provider: "openverse" as const,
     remoteUrl,
   };
 }
@@ -649,14 +771,15 @@ async function searchWikimediaCommonsImage(query: string) {
   for (const page of pages) {
     const info = page.imageinfo?.[0];
     const remoteUrl = info?.thumburl || info?.url;
-    if (!remoteUrl) {
+    if (!isFreshRemoteImageUrl(remoteUrl)) {
       continue;
     }
+    const freshRemoteUrl = remoteUrl as string;
 
     return {
       alt: page.title || query,
       provider: "wikimedia" as const,
-      remoteUrl,
+      remoteUrl: freshRemoteUrl,
     };
   }
 
@@ -666,20 +789,24 @@ async function searchWikimediaCommonsImage(query: string) {
 async function searchLicensedImageCandidates(
   queries: string[],
 ): Promise<LicensedImageMatch | undefined> {
+  const providers = [
+    searchGoogleCustomImage,
+    searchOpenverseImage,
+    searchPexelsImage,
+    searchUnsplashImage,
+    searchWikimediaCommonsImage,
+  ];
+
   for (const query of queries) {
-    const pexelsMatch = await searchPexelsImage(query);
-    if (pexelsMatch) {
-      return pexelsMatch;
-    }
-
-    const unsplashMatch = await searchUnsplashImage(query);
-    if (unsplashMatch) {
-      return unsplashMatch;
-    }
-
-    const wikimediaMatch = await searchWikimediaCommonsImage(query);
-    if (wikimediaMatch) {
-      return wikimediaMatch;
+    for (const provider of providers) {
+      try {
+        const match = await provider(query);
+        if (match && !recentRemoteImageUrls.has(match.remoteUrl)) {
+          return match;
+        }
+      } catch (error) {
+        console.error("[Reuters automation] Image provider failed:", error);
+      }
     }
   }
 
@@ -721,12 +848,21 @@ async function resolveTopicImage(input: {
   sourceSummary?: string;
   sourceTitle: string;
 }) {
+  await seedRecentImageUrlsFromPublishedArticles();
   const queries = buildReutersImageSearchCandidates(input);
 
   try {
     const providerMatch = await searchLicensedImageCandidates(queries);
     if (providerMatch) {
-      return await persistRemoteImage(providerMatch.remoteUrl, providerMatch.alt);
+      rememberImageUrl(providerMatch.remoteUrl);
+      try {
+        const storedImageUrl = await persistRemoteImage(providerMatch.remoteUrl, providerMatch.alt);
+        rememberImageUrl(storedImageUrl);
+        return storedImageUrl;
+      } catch (error) {
+        console.error("[Reuters automation] Image persistence failed:", error);
+        return providerMatch.remoteUrl;
+      }
     }
 
     if (ENV.forgeApiUrl && ENV.forgeApiKey) {
@@ -744,6 +880,7 @@ async function resolveTopicImage(input: {
       });
 
       if (generated.url) {
+        rememberImageUrl(generated.url);
         return generated.url;
       }
     }

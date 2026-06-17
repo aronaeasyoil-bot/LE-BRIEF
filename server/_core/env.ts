@@ -29,6 +29,8 @@ export const ENV = {
   openAiModel: process.env.OPENAI_MODEL ?? "gpt-4o-mini",
   unsplashAccessKey: process.env.UNSPLASH_ACCESS_KEY ?? "",
   pexelsApiKey: process.env.PEXELS_API_KEY ?? "",
+  googleCustomSearchApiKey: process.env.GOOGLE_CUSTOM_SEARCH_API_KEY ?? "",
+  googleCustomSearchCx: process.env.GOOGLE_CUSTOM_SEARCH_CX ?? "",
   autoPublishReuters: parseBooleanEnv(process.env.AUTO_PUBLISH_REUTERS, true),
   reutersEnergySourceUrl: process.env.REUTERS_ENERGY_SOURCE_URL ?? "https://www.reuters.com/business/energy/",
   cronSecret: process.env.CRON_SECRET ?? "",

@@ -84,6 +84,7 @@ pnpm db:push
   - `OPENAI_API_KEY`
   - `OPENAI_MODEL` (optionnel, defaut: `gpt-4o-mini`)
   - `UNSPLASH_ACCESS_KEY` ou `PEXELS_API_KEY`
+  - `GOOGLE_CUSTOM_SEARCH_API_KEY` et `GOOGLE_CUSTOM_SEARCH_CX` (optionnels, pour Google Images filtre par droits d'usage)
   - `AUTO_PUBLISH_REUTERS`
   - `REUTERS_ENERGY_SOURCE_URL`
   - `CRON_SECRET`
