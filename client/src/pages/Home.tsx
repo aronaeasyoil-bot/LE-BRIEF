@@ -58,10 +58,11 @@ export default function Home() {
   const { data: featured = [] } = trpc.articles.featured.useQuery({});
   const { data: articles = [] } = trpc.articles.published.useQuery({});
   const { data: events = [] } = trpc.events.published.useQuery();
-  const { data: magazines = [] } = trpc.magazines.list.useQuery();
+  const magazinesQuery = trpc.magazines.list.useQuery();
+  const magazines = magazinesQuery.data ?? [];
   const { data: ads = [] } = trpc.advertisements.active.useQuery();
   const [visibleArticlesCount, setVisibleArticlesCount] = useState(ARTICLE_BATCH_SIZE);
-  const displayedMagazines = magazines.length > 0 ? magazines : localMagazineFallback;
+  const isLoadingMagazines = magazinesQuery.status === "pending";
   const visibleArticles = useMemo(
     () => articles.slice(0, visibleArticlesCount),
     [articles, visibleArticlesCount],
@@ -101,7 +102,27 @@ export default function Home() {
 
       {/* Kiosk - Magazine Section - NOW AT TOP */}
       <section className="relative pt-[168px] pb-12 overflow-hidden">
-        <Kiosk magazines={displayedMagazines} />
+        {magazines.length > 0 ? (
+          <Kiosk magazines={magazines} />
+        ) : isLoadingMagazines ? (
+          <div className="container">
+            <div className="animate-pulse rounded-2xl border border-border/60 bg-card/30 p-6 md:p-8">
+              <div className="mb-6 h-8 w-28 rounded bg-muted/40" />
+              <div className="grid grid-cols-1 items-center gap-8 md:grid-cols-3">
+                <div className="aspect-[3/4] rounded-xl bg-muted/40" />
+                <div className="space-y-4 md:col-span-2">
+                  <div className="h-4 w-24 rounded bg-muted/40" />
+                  <div className="h-10 w-full max-w-2xl rounded bg-muted/40" />
+                  <div className="h-4 w-48 rounded bg-muted/40" />
+                  <div className="flex flex-col gap-3 sm:flex-row">
+                    <div className="h-12 w-full rounded bg-muted/40 sm:w-44" />
+                    <div className="h-12 w-full rounded bg-muted/40 sm:w-36" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : null}
       </section>
 
       <TopSponsorBanner />
