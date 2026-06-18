@@ -179,6 +179,56 @@ export default function NewsletterPopup() {
     });
   };
 
+  const benefitsMarkup = (
+    <div className="grid gap-3">
+      {text.benefits.map((benefit, index) => {
+        const Icon = index === 0 ? Newspaper : index === 1 ? TrendingUp : Clock3;
+        return (
+          <div
+            key={benefit}
+            className="flex items-start gap-3 rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-3"
+          >
+            <div className="mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/12 text-primary">
+              <Icon className="h-4 w-4" />
+            </div>
+            <p className="text-sm leading-6 text-gray-200">{benefit}</p>
+          </div>
+        );
+      })}
+    </div>
+  );
+
+  const renderForm = (inputId: string) => (
+    <div className="rounded-[20px] border border-white/10 bg-white/[0.04] p-5 sm:p-6">
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <label className="block text-sm font-medium text-white" htmlFor={inputId}>
+          {text.emailLabel}
+        </label>
+        <input
+          id={inputId}
+          type="email"
+          value={email}
+          onChange={(event) => {
+            markInteracted();
+            setEmail(event.target.value);
+          }}
+          placeholder="contact@lebrief.energy"
+          required
+          disabled={subscribeMutation.isPending}
+          className="h-14 w-full rounded-xl border border-white/12 bg-white px-4 py-3 text-sm text-slate-950 outline-none transition-colors focus:border-primary"
+        />
+        <button
+          type="submit"
+          disabled={subscribeMutation.isPending}
+          className="inline-flex w-full items-center justify-center rounded-xl bg-primary px-5 py-3.5 text-sm font-semibold text-white transition-transform hover:translate-y-[-1px] hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {text.subscribe}
+        </button>
+      </form>
+      <p className="mt-4 text-xs leading-5 text-gray-400">{text.helper}</p>
+    </div>
+  );
+
   return (
     <AnimatePresence>
       {isOpen ? (
@@ -203,84 +253,50 @@ export default function NewsletterPopup() {
             onMouseEnter={markInteracted}
             onFocusCapture={markInteracted}
             onPointerDown={markInteracted}
-            className="relative grid max-h-[92vh] w-full max-w-6xl overflow-hidden rounded-[22px] border border-white/10 bg-[#05070c] shadow-[0_30px_80px_rgba(0,0,0,0.45)] lg:grid-cols-[minmax(0,1.15fr)_minmax(360px,0.85fr)]"
+            className="relative grid max-h-[92vh] w-full max-w-6xl overflow-y-auto overflow-x-hidden rounded-[22px] border border-white/10 bg-[#05070c] shadow-[0_30px_80px_rgba(0,0,0,0.45)] lg:max-h-[90vh] lg:grid-cols-[minmax(0,1.15fr)_minmax(360px,0.85fr)]"
           >
             <button
               type="button"
               onClick={() => closePopup("manual")}
-              className="absolute right-4 top-4 z-20 inline-flex h-11 w-11 items-center justify-center rounded-full bg-black/55 text-white transition-colors hover:bg-black/75"
+              className="absolute right-3 top-3 z-20 inline-flex h-10 w-10 items-center justify-center rounded-full bg-black/55 text-white transition-colors hover:bg-black/75 sm:right-4 sm:top-4 sm:h-11 sm:w-11"
               aria-label="Close newsletter popup"
             >
               <X className="h-5 w-5" />
             </button>
 
-            <div className="relative flex min-h-[260px] items-center justify-center bg-white p-4 sm:p-6 lg:p-8">
+            <div className="relative flex items-center justify-center bg-white p-3 sm:p-5 lg:min-h-[260px] lg:p-8">
               <img
                 src="/media/newsletter-popup-lebrief.jpg"
                 alt="LE BRIEF newsletter promotion"
-                className="h-full max-h-[72vh] w-full rounded-xl object-contain"
+                className="w-full rounded-xl object-contain max-h-[34vh] sm:max-h-[40vh] lg:max-h-[72vh]"
               />
             </div>
 
-            <div className="flex flex-col justify-between bg-[#05070c] p-6 sm:p-8 lg:p-10">
+            <div className="flex flex-col justify-between bg-[#05070c] p-5 sm:p-6 lg:p-10">
               <div>
                 <div className="inline-flex items-center gap-2 rounded-full border border-primary/25 bg-primary/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-primary">
                   <Mail className="h-3.5 w-3.5" />
                   {text.badge}
                 </div>
 
-                <h2 className="mt-5 text-3xl font-bold leading-tight text-white sm:text-4xl">
+                <h2 className="mt-4 text-[2rem] font-bold leading-tight text-white sm:mt-5 sm:text-3xl lg:text-4xl">
                   {text.title}
                 </h2>
-                <p className="mt-4 max-w-xl text-sm leading-7 text-gray-300 sm:text-base">
+                <p className="mt-3 max-w-xl text-sm leading-7 text-gray-300 sm:mt-4 sm:text-base">
                   {text.subtitle}
                 </p>
 
-                <div className="mt-6 grid gap-3">
-                  {text.benefits.map((benefit, index) => {
-                    const Icon = index === 0 ? Newspaper : index === 1 ? TrendingUp : Clock3;
-                    return (
-                      <div
-                        key={benefit}
-                        className="flex items-start gap-3 rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-3"
-                      >
-                        <div className="mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/12 text-primary">
-                          <Icon className="h-4 w-4" />
-                        </div>
-                        <p className="text-sm leading-6 text-gray-200">{benefit}</p>
-                      </div>
-                    );
-                  })}
+                <div className="mt-5 lg:hidden">
+                  {renderForm("newsletter-popup-email-mobile")}
+                </div>
+
+                <div className="mt-5 lg:mt-6">
+                  {benefitsMarkup}
                 </div>
               </div>
 
-              <div className="mt-8 rounded-[20px] border border-white/10 bg-white/[0.04] p-5 sm:p-6">
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  <label className="block text-sm font-medium text-white" htmlFor="newsletter-popup-email">
-                    {text.emailLabel}
-                  </label>
-                  <input
-                    id="newsletter-popup-email"
-                    type="email"
-                    value={email}
-                    onChange={(event) => {
-                      markInteracted();
-                      setEmail(event.target.value);
-                    }}
-                    placeholder="contact@lebrief.energy"
-                    required
-                    disabled={subscribeMutation.isPending}
-                    className="h-14 w-full rounded-xl border border-white/12 bg-white px-4 py-3 text-sm text-slate-950 outline-none transition-colors focus:border-primary"
-                  />
-                  <button
-                    type="submit"
-                    disabled={subscribeMutation.isPending}
-                    className="inline-flex w-full items-center justify-center rounded-xl bg-primary px-5 py-3.5 text-sm font-semibold text-white transition-transform hover:translate-y-[-1px] hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {text.subscribe}
-                  </button>
-                </form>
-                <p className="mt-4 text-xs leading-5 text-gray-400">{text.helper}</p>
+              <div className="mt-8 hidden lg:block">
+                {renderForm("newsletter-popup-email-desktop")}
               </div>
             </div>
           </motion.section>
