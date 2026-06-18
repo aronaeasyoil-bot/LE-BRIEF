@@ -3,6 +3,7 @@ import {
   buildNewsletterUnsubscribeUrl,
   chunkNewsletterRecipients,
   extractEmailsFromText,
+  getDailyCampaignKey,
   NEWSLETTER_RESEND_BCC_CHUNK_SIZE,
   normalizeNewsletterEmail,
   shouldRetryNewsletterWithResendOnboarding,
@@ -64,5 +65,13 @@ describe("newsletter helpers", () => {
     expect(chunks).toHaveLength(2);
     expect(chunks[0]).toHaveLength(49);
     expect(chunks[1]).toHaveLength(1);
+  });
+
+  it("builds a stable daily campaign key per language and day", () => {
+    const referenceDate = new Date("2026-06-18T14:30:00Z");
+
+    expect(getDailyCampaignKey(referenceDate, "fr")).toBe("daily-fr-2026-06-18");
+    expect(getDailyCampaignKey(referenceDate, "en")).toBe("daily-en-2026-06-18");
+    expect(getDailyCampaignKey(referenceDate, "ar")).toBe("daily-ar-2026-06-18");
   });
 });

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link } from "wouter";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { trpc } from "@/lib/trpc";
+import { markNewsletterPopupSubscribed } from "@/lib/newsletter-popup";
 import { toast } from "sonner";
 import {
   CONTACT_EMAIL,
@@ -22,6 +23,7 @@ export default function Footer() {
     },
     onSuccess: () => {
       toast.success(t.newsletter.success);
+      markNewsletterPopupSubscribed();
       setEmail("");
     },
   });

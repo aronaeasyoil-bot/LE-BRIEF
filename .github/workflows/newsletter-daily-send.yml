@@ -1,0 +1,16 @@
+name: Daily Newsletter Send
+
+on:
+  schedule:
+    - cron: "30 6 * * *"
+  workflow_dispatch:
+
+jobs:
+  send-daily-newsletter:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Trigger LE BRIEF daily newsletter send
+        run: |
+          curl --fail --show-error --silent \
+            "https://www.lebrief.energy/api/cron/newsletter-daily"

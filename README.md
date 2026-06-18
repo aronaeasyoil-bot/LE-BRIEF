@@ -115,6 +115,7 @@ pnpm db:push
 ## Newsletter
 
 - L'inscription `Rester informe` enregistre les emails dans la table `subscribers`.
+- Un pop-up newsletter s'affiche automatiquement sur les pages publiques apres quelques secondes, avec fermeture manuelle ou disparition automatique si le visiteur l'ignore.
 - Un onglet `Newsletter` est disponible dans l'admin pour:
   - importer une liste CSV ou texte
   - voir les abonnes recents
@@ -123,6 +124,8 @@ pnpm db:push
   - envoyer la campagne uniquement apres clic manuel sur `Envoyer`
 - Le brouillon hebdomadaire automatique est cree via la route `/api/cron/newsletter-weekly`.
 - La frequence hebdomadaire est fournie par le workflow GitHub `.github/workflows/newsletter-weekly-draft.yml`.
+- La newsletter quotidienne automatique est envoyee via la route `/api/cron/newsletter-daily`.
+- La frequence quotidienne est fournie par le workflow GitHub `.github/workflows/newsletter-daily-send.yml`.
 - Variables d'environnement requises pour l'envoi reel:
   - `RESEND_API_KEY`
   - `NEWSLETTER_FROM_EMAIL`

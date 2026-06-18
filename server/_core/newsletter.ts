@@ -22,6 +22,60 @@ const RESEND_MAX_RECIPIENTS_PER_REQUEST = 50;
 const RESEND_ANCHOR_RECIPIENT_COUNT = 1;
 export const NEWSLETTER_RESEND_BCC_CHUNK_SIZE =
   RESEND_MAX_RECIPIENTS_PER_REQUEST - RESEND_ANCHOR_RECIPIENT_COUNT;
+type NewsletterLanguage = "fr" | "en" | "ar";
+
+const DAILY_NEWSLETTER_COPY: Record<
+  NewsletterLanguage,
+  {
+    bodyIntro: string;
+    ctaLabel: string;
+    footerNote: string;
+    headlineLabel: string;
+    readMoreLabel: string;
+    secondaryLabel: string;
+    subjectPrefix: string;
+    subtitle: string;
+    titlePrefix: string;
+    unsubscribePrefix: string;
+  }
+> = {
+  ar: {
+    bodyIntro: "ابرز الموضوعات المنشورة على LE BRIEF خلال اخر 24 ساعة.",
+    ctaLabel: "اقرا المقال",
+    footerNote: "تصلك هذه النشرة لان بريدك الالكتروني مسجل لدى LE BRIEF.",
+    headlineLabel: "ابرز خبر",
+    readMoreLabel: "اكمل القراءة",
+    secondaryLabel: "اهم ما يجب متابعته",
+    subjectPrefix: "LE BRIEF | الاخبار اليومية",
+    subtitle: "موجز يومي عن الطاقة والاسواق والاستثمار في افريقيا",
+    titlePrefix: "النشرة اليومية",
+    unsubscribePrefix: "الغاء الاشتراك",
+  },
+  en: {
+    bodyIntro: "The key LE BRIEF stories published over the last 24 hours.",
+    ctaLabel: "Read the story",
+    footerNote: "You are receiving this newsletter because your email address is subscribed to LE BRIEF.",
+    headlineLabel: "Top story",
+    readMoreLabel: "Continue reading",
+    secondaryLabel: "More to watch",
+    subjectPrefix: "LE BRIEF | Daily briefing",
+    subtitle: "Daily energy, markets, and investment intelligence from Africa",
+    titlePrefix: "Daily newsletter",
+    unsubscribePrefix: "Unsubscribe",
+  },
+  fr: {
+    bodyIntro: "Les sujets majeurs publies sur LE BRIEF au cours des dernieres 24 heures.",
+    ctaLabel: "Lire l'article",
+    footerNote: "Vous recevez cette newsletter car votre adresse email est inscrite sur LE BRIEF.",
+    headlineLabel: "Temps fort",
+    readMoreLabel: "Continuer la lecture",
+    secondaryLabel: "A lire aussi",
+    subjectPrefix: "LE BRIEF | Le point quotidien",
+    subtitle: "Brief quotidien Energie, marches et investissements en Afrique",
+    titlePrefix: "Newsletter quotidienne",
+    unsubscribePrefix: "Se desinscrire",
+  },
+};
 
 function normalizeText(value?: string | null) {
   if (typeof value !== "string") {
@@ -69,22 +123,27 @@ function truncateText(value: string, maxLength: number) {
   return `${value.slice(0, Math.max(0, maxLength - 1)).trimEnd()}…`;
 }
 
-function getArticleTitle(article: any) {
+function getLocalizedArticleField(
+  article: any,
+  field: "excerpt" | "title",
+  language: NewsletterLanguage = "fr",
+) {
+  const suffix = language.charAt(0).toUpperCase() + language.slice(1);
   return (
-    normalizeText(article.titleFr) ||
-    normalizeText(article.titleEn) ||
-    normalizeText(article.titleAr) ||
-    "Article LE BRIEF"
+    normalizeText(article[`${field}${suffix}`]) ||
+    normalizeText(article[`${field}Fr`]) ||
+    normalizeText(article[`${field}En`]) ||
+    normalizeText(article[`${field}Ar`]) ||
+    ""
   );
 }
 
-function getArticleExcerpt(article: any) {
-  return (
-    normalizeText(article.excerptFr) ||
-    normalizeText(article.excerptEn) ||
-    normalizeText(article.excerptAr) ||
-    ""
-  );
+function getArticleTitle(article: any, language: NewsletterLanguage = "fr") {
+  return getLocalizedArticleField(article, "title", language) || "Article LE BRIEF";
+}
+
+function getArticleExcerpt(article: any, language: NewsletterLanguage = "fr") {
+  return getLocalizedArticleField(article, "excerpt", language);
 }
 
 function getArticleImageUrl(article: any) {
@@ -100,12 +159,19 @@ function getArticleUrl(articleId: number) {
   return `${SITE_URL}/article/${articleId}`;
 }
 
-function formatFrenchDate(value: Date) {
-  return new Intl.DateTimeFormat("fr-FR", {
+function formatNewsletterDate(value: Date, language: NewsletterLanguage = "fr") {
+  const locale =
+    language === "en" ? "en-US" : language === "ar" ? "ar-SA" : "fr-FR";
+
+  return new Intl.DateTimeFormat(locale, {
     day: "2-digit",
     month: "long",
     year: "numeric",
   }).format(value);
+}
+
+function formatFrenchDate(value: Date) {
+  return formatNewsletterDate(value, "fr");
 }
 
 function getWeeklyWindow(referenceDate = new Date()) {
@@ -341,6 +407,238 @@ function buildWeeklyNewsletterText(articles: any[], weekStart: Date) {
   return lines.join("\n");
 }
 
+export function getDailyCampaignKey(referenceDate = new Date(), language: NewsletterLanguage = "fr") {
+  const anchor = new Date(
+    Date.UTC(
+      referenceDate.getUTCFullYear(),
+      referenceDate.getUTCMonth(),
+      referenceDate.getUTCDate(),
+      0,
+      0,
+      0,
+      0,
+    ),
+  );
+  return `daily-${language}-${anchor.toISOString().slice(0, 10)}`;
+}
+
+function getDailyWindow(referenceDate = new Date(), language: NewsletterLanguage = "fr") {
+  const anchor = new Date(
+    Date.UTC(
+      referenceDate.getUTCFullYear(),
+      referenceDate.getUTCMonth(),
+      referenceDate.getUTCDate(),
+      0,
+      0,
+      0,
+      0,
+    ),
+  );
+  const lookbackStart = new Date(anchor);
+  lookbackStart.setUTCDate(anchor.getUTCDate() - 1);
+  const endExclusive = new Date(anchor);
+  endExclusive.setUTCDate(anchor.getUTCDate() + 1);
+
+  return {
+    anchor,
+    endExclusive,
+    key: getDailyCampaignKey(referenceDate, language),
+    lookbackStart,
+  };
+}
+
+function buildDailyNewsletterHtml(
+  articles: any[],
+  referenceDate: Date,
+  language: NewsletterLanguage = "fr",
+) {
+  const copy = DAILY_NEWSLETTER_COPY[language];
+  const headlineArticle = articles[0];
+  const otherArticles = articles.slice(1);
+  const formattedDate = formatNewsletterDate(referenceDate, language);
+
+  const heroHtml = headlineArticle
+    ? `
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;">
+        <tr>
+          <td style="padding-bottom:24px;">
+            <img src="${escapeHtml(getArticleImageUrl(headlineArticle))}" alt="${escapeHtml(getArticleTitle(headlineArticle, language))}" style="width:100%;height:auto;border-radius:18px;display:block;" />
+          </td>
+        </tr>
+        <tr>
+          <td style="padding-bottom:12px;color:#d62828;font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;">${escapeHtml(copy.headlineLabel)}</td>
+        </tr>
+        <tr>
+          <td style="padding-bottom:12px;color:#0f172a;font-size:32px;font-weight:700;line-height:1.2;">
+            ${escapeHtml(getArticleTitle(headlineArticle, language))}
+          </td>
+        </tr>
+        <tr>
+          <td style="padding-bottom:20px;color:#475569;font-size:16px;line-height:1.7;">
+            ${escapeHtml(getArticleExcerpt(headlineArticle, language))}
+          </td>
+        </tr>
+        <tr>
+          <td style="padding-bottom:36px;">
+            <a href="${escapeHtml(getArticleUrl(headlineArticle.id))}" style="display:inline-block;background:#d62828;color:#ffffff;text-decoration:none;font-weight:700;padding:14px 22px;border-radius:999px;">${escapeHtml(copy.ctaLabel)}</a>
+          </td>
+        </tr>
+      </table>
+    `
+    : "";
+
+  const listHtml = otherArticles
+    .map((article) => {
+      const articleDate = article.publishedAt
+        ? formatNewsletterDate(new Date(article.publishedAt), language)
+        : "";
+      return `
+        <tr>
+          <td style="padding:0 0 18px;">
+            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;border:1px solid #e2e8f0;border-radius:16px;overflow:hidden;">
+              <tr>
+                <td style="padding:20px;">
+                  <div style="color:#d62828;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;padding-bottom:8px;">${escapeHtml(articleDate)}</div>
+                  <div style="color:#0f172a;font-size:20px;font-weight:700;line-height:1.35;padding-bottom:8px;">${escapeHtml(getArticleTitle(article, language))}</div>
+                  <div style="color:#475569;font-size:15px;line-height:1.7;padding-bottom:14px;">${escapeHtml(getArticleExcerpt(article, language))}</div>
+                  <a href="${escapeHtml(getArticleUrl(article.id))}" style="color:#0f172a;font-size:14px;font-weight:700;text-decoration:none;">${escapeHtml(copy.readMoreLabel)}</a>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      `;
+    })
+    .join("");
+
+  return `
+<!doctype html>
+<html lang="${language}">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>${escapeHtml(copy.titlePrefix)}</title>
+  </head>
+  <body style="margin:0;background:#f8fafc;font-family:Inter,Arial,sans-serif;color:#0f172a;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;background:#f8fafc;">
+      <tr>
+        <td align="center" style="padding:32px 16px;">
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;max-width:720px;background:#ffffff;border-radius:28px;overflow:hidden;">
+            <tr>
+              <td style="padding:36px 36px 28px;background:#05070c;color:#ffffff;">
+                <div style="font-size:34px;font-weight:800;letter-spacing:-0.03em;">
+                  <span style="color:#ffffff;">LE </span><span style="color:#d62828;">BRIEF</span>
+                </div>
+                <div style="padding-top:18px;color:#f8fafc;font-size:28px;font-weight:700;line-height:1.25;">
+                  ${escapeHtml(copy.titlePrefix)} - ${escapeHtml(formattedDate)}
+                </div>
+                <div style="padding-top:10px;color:#cbd5e1;font-size:16px;line-height:1.7;">
+                  ${escapeHtml(copy.subtitle)}
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:36px;">
+                <div style="padding-bottom:18px;color:#475569;font-size:15px;line-height:1.8;">
+                  ${escapeHtml(copy.bodyIntro)}
+                </div>
+                ${heroHtml}
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;">
+                  <tr>
+                    <td style="padding:0 0 18px;color:#0f172a;font-size:22px;font-weight:700;">${escapeHtml(copy.secondaryLabel)}</td>
+                  </tr>
+                  ${listHtml}
+                </table>
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;border-top:1px solid #e2e8f0;margin-top:8px;">
+                  <tr>
+                    <td style="padding-top:24px;color:#64748b;font-size:13px;line-height:1.8;">
+                      ${escapeHtml(copy.footerNote)}
+                      <br />
+                      <a href="${escapeHtml(SITE_URL)}" style="color:#d62828;text-decoration:none;">www.lebrief.energy</a>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>
+  `.trim();
+}
+
+function buildDailyNewsletterText(
+  articles: any[],
+  referenceDate: Date,
+  language: NewsletterLanguage = "fr",
+) {
+  const copy = DAILY_NEWSLETTER_COPY[language];
+  const lines = [
+    "LE BRIEF",
+    `${copy.titlePrefix} - ${formatNewsletterDate(referenceDate, language)}`,
+    "",
+    copy.bodyIntro,
+    "",
+  ];
+
+  for (const article of articles) {
+    lines.push(`- ${getArticleTitle(article, language)}`);
+    const excerpt = getArticleExcerpt(article, language);
+    if (excerpt) {
+      lines.push(`  ${excerpt}`);
+    }
+    lines.push(`  ${getArticleUrl(article.id)}`);
+    lines.push("");
+  }
+
+  lines.push(`${copy.unsubscribePrefix}: ${buildNewsletterUnsubscribeUrl(DEFAULT_RECIPIENT_ANCHOR)}`);
+  return lines.join("\n");
+}
+
+async function buildDailyNewsletterDraftPayload(
+  referenceDate = new Date(),
+  language: NewsletterLanguage = "fr",
+) {
+  const dailyWindow = getDailyWindow(referenceDate, language);
+  const allArticles = await getPublishedArticles(12, 0);
+  const recentArticles = allArticles.filter((article) => {
+    if (!article.publishedAt) {
+      return false;
+    }
+
+    const publishedAt = new Date(article.publishedAt);
+    return publishedAt >= dailyWindow.lookbackStart && publishedAt < dailyWindow.endExclusive;
+  });
+  const selectedArticles = (recentArticles.length >= 3 ? recentArticles : allArticles).slice(0, 5);
+
+  if (selectedArticles.length === 0) {
+    throw new Error("No published articles available to generate the daily newsletter.");
+  }
+
+  const copy = DAILY_NEWSLETTER_COPY[language];
+  const subject = `${copy.subjectPrefix} - ${formatNewsletterDate(dailyWindow.anchor, language)}`;
+  const title = `${copy.titlePrefix} - ${formatNewsletterDate(dailyWindow.anchor, language)}`;
+  const previewText = truncateText(
+    getArticleExcerpt(selectedArticles[0], language) ||
+      "Retrouvez les analyses et actualites marquantes publiees sur LE BRIEF.",
+    320,
+  );
+
+  return {
+    articleCount: selectedArticles.length,
+    articleIds: selectedArticles.map((article) => article.id).join(","),
+    htmlContent: buildDailyNewsletterHtml(selectedArticles, dailyWindow.anchor, language),
+    key: dailyWindow.key,
+    previewText,
+    status: "draft" as const,
+    subject: truncateText(subject, 255),
+    textContent: buildDailyNewsletterText(selectedArticles, dailyWindow.anchor, language),
+    title: truncateText(title, 255),
+  };
+}
+
 async function buildWeeklyNewsletterDraftPayload(referenceDate = new Date()) {
   const weeklyWindow = getWeeklyWindow(referenceDate);
   const allArticles = await getPublishedArticles(18, 0);
@@ -376,6 +674,71 @@ async function buildWeeklyNewsletterDraftPayload(referenceDate = new Date()) {
     textContent: buildWeeklyNewsletterText(selectedArticles, weeklyWindow.start),
     title: truncateText(title, 255),
     weekKey: weeklyWindow.weekKey,
+  };
+}
+
+export async function generateDailyNewsletterCampaign(
+  options: { force?: boolean; language?: NewsletterLanguage } = {},
+) {
+  const language = options.language ?? "fr";
+  const payload = await buildDailyNewsletterDraftPayload(new Date(), language);
+  const existingCampaign = await getNewsletterCampaignByWeekKey(payload.key);
+
+  if (existingCampaign?.status === "sent") {
+    return {
+      campaign: existingCampaign,
+      created: false,
+      updated: false,
+    };
+  }
+
+  if (existingCampaign && !options.force) {
+    return {
+      campaign: existingCampaign,
+      created: false,
+      updated: false,
+    };
+  }
+
+  if (existingCampaign) {
+    await updateNewsletterCampaign(existingCampaign.id, {
+      articleCount: payload.articleCount,
+      articleIds: payload.articleIds,
+      htmlContent: payload.htmlContent,
+      lastError: null,
+      previewText: payload.previewText,
+      status: "draft",
+      subject: payload.subject,
+      textContent: payload.textContent,
+      title: payload.title,
+    });
+
+    const refreshed = await getNewsletterCampaignById(existingCampaign.id);
+    return {
+      campaign: refreshed ?? existingCampaign,
+      created: false,
+      updated: true,
+    };
+  }
+
+  const insertedId = await createNewsletterCampaign({
+    articleCount: payload.articleCount,
+    articleIds: payload.articleIds,
+    htmlContent: payload.htmlContent,
+    language,
+    previewText: payload.previewText,
+    status: "draft",
+    subject: payload.subject,
+    textContent: payload.textContent,
+    title: payload.title,
+    weekKey: payload.key,
+  });
+
+  const createdCampaign = await getNewsletterCampaignById(insertedId);
+  return {
+    campaign: createdCampaign,
+    created: true,
+    updated: false,
   };
 }
 
@@ -594,6 +957,70 @@ export async function sendNewsletterCampaignById(campaignId: number) {
     });
     throw error;
   }
+}
+
+export async function triggerDailyNewsletterAutomation(options: { force?: boolean } = {}) {
+  if (!isNewsletterSendConfigured()) {
+    return {
+      results: [],
+      skipped: true,
+      reason: "send-not-configured",
+    };
+  }
+
+  const languages: NewsletterLanguage[] = ["fr", "en", "ar"];
+  const results: Array<Record<string, unknown>> = [];
+
+  for (const language of languages) {
+    const subscribers = await getAllSubscribers(language);
+    if (subscribers.length === 0) {
+      results.push({
+        language,
+        reason: "no-subscribers",
+        skipped: true,
+      });
+      continue;
+    }
+
+    const draftResult = await generateDailyNewsletterCampaign({
+      force: options.force,
+      language,
+    });
+
+    if (!draftResult.campaign) {
+      results.push({
+        language,
+        reason: "campaign-not-created",
+        skipped: true,
+      });
+      continue;
+    }
+
+    if (draftResult.campaign.status === "sent") {
+      results.push({
+        campaignId: draftResult.campaign.id,
+        language,
+        reason: "already-sent",
+        skipped: true,
+      });
+      continue;
+    }
+
+    const sendResult = await sendNewsletterCampaignById(draftResult.campaign.id);
+    results.push({
+      campaignId: draftResult.campaign.id,
+      created: draftResult.created,
+      language,
+      skipped: false,
+      updated: draftResult.updated,
+      ...sendResult,
+    });
+  }
+
+  return {
+    results,
+    skipped: results.every((item) => item.skipped === true),
+  };
 }
 
 export async function triggerWeeklyNewsletterDraftAutomation(options: { force?: boolean } = {}) {
