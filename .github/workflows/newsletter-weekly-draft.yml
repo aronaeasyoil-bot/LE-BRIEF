@@ -1,8 +1,6 @@
 name: Weekly Newsletter Draft
 
 on:
-  schedule:
-    - cron: "0 7 * * 1"
   workflow_dispatch:
 
 jobs:
@@ -14,4 +12,3 @@ jobs:
         run: |
           curl --fail --show-error --silent \
             "https://www.lebrief.energy/api/cron/newsletter-weekly"
-

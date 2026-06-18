@@ -3,6 +3,7 @@ import { getSessionCookieOptions } from "./_core/cookies";
 import { uploadAdminFile } from "./_core/fileUpload";
 import { getPublicMarketPrices } from "./_core/marketPrices";
 import {
+  generateDailyNewsletterDraft,
   generateWeeklyNewsletterDraft,
   importSubscribersFromText,
   isNewsletterSendConfigured,
@@ -466,6 +467,30 @@ export const appRouter = router({
         return importSubscribersFromText(input.rawText, {
           defaultLanguage: input.language ?? "fr",
         });
+      }),
+    generateDailyDraft: adminProcedure
+      .input(
+        z.object({
+          force: z.boolean().optional(),
+        }).optional(),
+      )
+      .mutation(async ({ input }) => {
+        const result = await generateDailyNewsletterDraft({
+          force: input?.force ?? false,
+          language: "fr",
+        });
+
+        return {
+          ...result,
+          campaign: result.campaign
+            ? {
+                ...result.campaign,
+                articleIds: normalizeOptionalText(result.campaign.articleIds),
+                lastError: normalizeOptionalText(result.campaign.lastError),
+                previewText: normalizeOptionalText(result.campaign.previewText),
+              }
+            : result.campaign,
+        };
       }),
     generateWeeklyDraft: adminProcedure
       .input(

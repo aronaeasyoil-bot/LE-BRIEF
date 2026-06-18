@@ -49,9 +49,9 @@ const newsletterText = {
       "Email delivery is not configured yet. Add RESEND_API_KEY and NEWSLETTER_FROM_EMAIL in Vercel before sending newsletters.",
     currentDraft: "Current draft",
     emptyCampaigns: "No newsletter campaigns yet.",
-    emptyDraft: "No weekly draft is available yet.",
+    emptyDraft: "No daily draft is available yet.",
     emptySubscribers: "No subscribers yet.",
-    generate: "Generate weekly draft",
+    generate: "Generate daily draft",
     import: "Import list",
     importHint: "Upload a CSV or paste a list of emails. Duplicates are removed automatically.",
     importReady: "File ready to import",
@@ -71,7 +71,7 @@ const newsletterText = {
       sending: "Sending",
       sent: "Sent",
     },
-    subtitle: "Generate a weekly newsletter automatically, then send it only after you approve it from the admin panel.",
+    subtitle: "A daily draft is prepared automatically at 02:00 Dubai time, then it is sent only after your approval from the admin panel.",
     title: "Newsletter",
   },
   fr: {
@@ -79,9 +79,9 @@ const newsletterText = {
       "L'envoi email n'est pas encore configure. Ajoutez RESEND_API_KEY et NEWSLETTER_FROM_EMAIL dans Vercel avant l'envoi.",
     currentDraft: "Brouillon en attente",
     emptyCampaigns: "Aucune campagne newsletter pour le moment.",
-    emptyDraft: "Aucun brouillon hebdomadaire n'est disponible pour le moment.",
+    emptyDraft: "Aucun brouillon quotidien n'est disponible pour le moment.",
     emptySubscribers: "Aucun abonne pour le moment.",
-    generate: "Generer le brouillon hebdomadaire",
+    generate: "Generer le brouillon quotidien",
     import: "Importer la liste",
     importHint: "Chargez un CSV ou collez une liste d'emails. Les doublons sont elimines automatiquement.",
     importReady: "Fichier pret a importer",
@@ -101,7 +101,7 @@ const newsletterText = {
       sending: "Envoi",
       sent: "Envoye",
     },
-    subtitle: "Le brouillon est cree automatiquement chaque semaine, puis l'envoi ne part qu'apres votre clic sur le bouton Envoyer.",
+    subtitle: "Le brouillon quotidien est prepare automatiquement a 02:00 heure de Dubai, puis l'envoi ne part qu'apres votre clic sur le bouton Envoyer.",
     title: "Newsletter",
   },
 } as const;
@@ -155,10 +155,10 @@ export default function NewsletterAdminTab() {
       toast.error(error.message);
     },
   });
-  const generateMutation = trpc.newsletter.generateWeeklyDraft.useMutation({
+  const generateMutation = trpc.newsletter.generateDailyDraft.useMutation({
     onSuccess: async () => {
       await utils.newsletter.dashboard.invalidate();
-      toast.success(lang === "fr" ? "Brouillon hebdomadaire mis a jour." : lang === "ar" ? "تم تحديث المسودة الأسبوعية." : "Weekly draft updated.");
+      toast.success(lang === "fr" ? "Brouillon quotidien mis a jour." : lang === "ar" ? "تم تحديث المسودة الأسبوعية." : "Daily draft updated.");
     },
     onError: (error) => {
       toast.error(error.message);
@@ -182,7 +182,16 @@ export default function NewsletterAdminTab() {
 
   const campaigns = dashboardQuery.data?.campaigns ?? [];
   const currentDraft = useMemo(
-    () => campaigns.find((campaign) => campaign.status === "draft" || campaign.status === "failed" || campaign.status === "sending"),
+    () =>
+      campaigns.find(
+        (campaign) =>
+          campaign.language === "fr" &&
+          (campaign.status === "draft" || campaign.status === "failed" || campaign.status === "sending"),
+      ) ??
+      campaigns.find(
+        (campaign) =>
+          campaign.status === "draft" || campaign.status === "failed" || campaign.status === "sending",
+      ),
     [campaigns],
   );
 

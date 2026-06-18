@@ -961,6 +961,16 @@ export async function generateDailyNewsletterCampaign(
   };
 }
 
+export async function generateDailyNewsletterDraft(options: {
+  force?: boolean;
+  language?: NewsletterLanguage;
+} = {}) {
+  return generateDailyNewsletterCampaign({
+    force: options.force,
+    language: options.language ?? "fr",
+  });
+}
+
 export async function generateWeeklyNewsletterDraft(options: { force?: boolean } = {}) {
   const payload = await buildWeeklyNewsletterDraftPayload();
   const existingCampaign = await getNewsletterCampaignByWeekKey(payload.weekKey);
@@ -1239,6 +1249,26 @@ export async function triggerDailyNewsletterAutomation(options: { force?: boolea
   return {
     results,
     skipped: results.every((item) => item.skipped === true),
+  };
+}
+
+export async function triggerDailyNewsletterDraftAutomation(options: {
+  force?: boolean;
+  language?: NewsletterLanguage;
+} = {}) {
+  const language = options.language ?? "fr";
+  const result = await generateDailyNewsletterDraft({
+    force: options.force,
+    language,
+  });
+
+  return {
+    campaignId: result.campaign?.id ?? null,
+    created: result.created,
+    language,
+    skipped: false,
+    status: result.campaign?.status ?? null,
+    updated: result.updated,
   };
 }
 
