@@ -24,6 +24,109 @@ export const NEWSLETTER_RESEND_BCC_CHUNK_SIZE =
   RESEND_MAX_RECIPIENTS_PER_REQUEST - RESEND_ANCHOR_RECIPIENT_COUNT;
 type NewsletterLanguage = "fr" | "en" | "ar";
 
+const SENEGAL_PRIORITY_TERMS = [
+  "senegal",
+  "dakar",
+  "senelec",
+  "petrosen",
+  "sangomar",
+  "gta",
+  "grand tortue ahmeyim",
+  "gandon",
+];
+
+const AFRICAN_PRIORITY_TERMS = [
+  "africa",
+  "afrique",
+  "african",
+  "africain",
+  "africaine",
+  "africaines",
+  "africains",
+  "algeria",
+  "algerie",
+  "angola",
+  "benin",
+  "botswana",
+  "burkina",
+  "burundi",
+  "cameroon",
+  "cameroun",
+  "cape verde",
+  "cap-vert",
+  "central african republic",
+  "republique centrafricaine",
+  "chad",
+  "tchad",
+  "comoros",
+  "comores",
+  "congo",
+  "cote d'ivoire",
+  "cote divoire",
+  "côte d'ivoire",
+  "djibouti",
+  "egypt",
+  "egypte",
+  "égypte",
+  "equatorial guinea",
+  "guinee equatoriale",
+  "eritrea",
+  "erythree",
+  "eswatini",
+  "ethiopia",
+  "ethiopie",
+  "gabon",
+  "gambia",
+  "gambie",
+  "ghana",
+  "guinea",
+  "guinee",
+  "guinée",
+  "guinea-bissau",
+  "guinee-bissau",
+  "kenya",
+  "lesotho",
+  "liberia",
+  "liberia",
+  "libya",
+  "libye",
+  "madagascar",
+  "malawi",
+  "mali",
+  "mauritania",
+  "mauritanie",
+  "mauritius",
+  "maurice",
+  "morocco",
+  "maroc",
+  "mozambique",
+  "namibia",
+  "niger",
+  "nigeria",
+  "rwanda",
+  "sao tome",
+  "sao tome-et-principe",
+  "seychelles",
+  "sierra leone",
+  "somalia",
+  "somalie",
+  "south africa",
+  "afrique du sud",
+  "south sudan",
+  "soudan du sud",
+  "sudan",
+  "soudan",
+  "tanzania",
+  "tanzanie",
+  "togo",
+  "tunisia",
+  "tunisie",
+  "uganda",
+  "zambia",
+  "zambie",
+  "zimbabwe",
+];
+
 const DAILY_NEWSLETTER_COPY: Record<
   NewsletterLanguage,
   {
@@ -83,6 +186,13 @@ function normalizeText(value?: string | null) {
   }
 
   return value.replace(/\u00a0/g, " ").trim();
+}
+
+function normalizeComparableText(value?: string | null) {
+  return normalizeText(value)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
 }
 
 export function normalizeNewsletterEmail(email: string) {
@@ -146,6 +256,10 @@ function getArticleExcerpt(article: any, language: NewsletterLanguage = "fr") {
   return getLocalizedArticleField(article, "excerpt", language);
 }
 
+function hasArticleCustomImage(article: any) {
+  return Boolean(normalizeText(article.imageUrl));
+}
+
 function getArticleImageUrl(article: any) {
   const imageUrl = normalizeText(article.imageUrl);
   if (!imageUrl) {
@@ -157,6 +271,105 @@ function getArticleImageUrl(article: any) {
 
 function getArticleUrl(articleId: number) {
   return `${SITE_URL}/article/${articleId}`;
+}
+
+function buildArticleComparableCorpus(article: any) {
+  return normalizeComparableText(
+    [
+      article.titleFr,
+      article.titleEn,
+      article.titleAr,
+      article.excerptFr,
+      article.excerptEn,
+      article.excerptAr,
+    ]
+      .map((value) => normalizeText(value))
+      .filter(Boolean)
+      .join(" "),
+  );
+}
+
+function containsAnyTerm(text: string, terms: string[]) {
+  return terms.some((term) => text.includes(term));
+}
+
+function scoreDailyNewsletterArticle(article: any, language: NewsletterLanguage = "fr") {
+  const comparableTitle = normalizeComparableText(
+    [
+      getArticleTitle(article, language),
+      article.titleFr,
+      article.titleEn,
+      article.titleAr,
+    ]
+      .map((value) => normalizeText(value))
+      .filter(Boolean)
+      .join(" "),
+  );
+  const comparableExcerpt = normalizeComparableText(
+    [
+      getArticleExcerpt(article, language),
+      article.excerptFr,
+      article.excerptEn,
+      article.excerptAr,
+    ]
+      .map((value) => normalizeText(value))
+      .filter(Boolean)
+      .join(" "),
+  );
+  const comparableCorpus = buildArticleComparableCorpus(article);
+
+  let score = 0;
+
+  if (hasArticleCustomImage(article)) {
+    score += 80;
+  }
+
+  if (containsAnyTerm(comparableTitle, SENEGAL_PRIORITY_TERMS)) {
+    score += 500;
+  } else if (containsAnyTerm(comparableExcerpt, SENEGAL_PRIORITY_TERMS) || containsAnyTerm(comparableCorpus, SENEGAL_PRIORITY_TERMS)) {
+    score += 360;
+  }
+
+  if (containsAnyTerm(comparableTitle, AFRICAN_PRIORITY_TERMS)) {
+    score += 240;
+  } else if (containsAnyTerm(comparableExcerpt, AFRICAN_PRIORITY_TERMS) || containsAnyTerm(comparableCorpus, AFRICAN_PRIORITY_TERMS)) {
+    score += 140;
+  }
+
+  if (normalizeText(getArticleExcerpt(article, language))) {
+    score += 20;
+  }
+
+  if (article.publishedAt) {
+    const publishedAt = new Date(article.publishedAt).getTime();
+    if (!Number.isNaN(publishedAt)) {
+      score += publishedAt / 1_000_000_000_000;
+    }
+  }
+
+  return score;
+}
+
+export function selectDailyNewsletterArticles(
+  articles: any[],
+  language: NewsletterLanguage = "fr",
+  limit = 5,
+) {
+  const ranked = [...articles].sort((left, right) => {
+    const scoreDifference =
+      scoreDailyNewsletterArticle(right, language) -
+      scoreDailyNewsletterArticle(left, language);
+
+    if (scoreDifference !== 0) {
+      return scoreDifference;
+    }
+
+    const rightPublished = right.publishedAt ? new Date(right.publishedAt).getTime() : 0;
+    const leftPublished = left.publishedAt ? new Date(left.publishedAt).getTime() : 0;
+    return rightPublished - leftPublished;
+  });
+
+  return ranked.slice(0, limit);
 }
 
 function formatNewsletterDate(value: Date, language: NewsletterLanguage = "fr") {
@@ -497,6 +710,11 @@ function buildDailyNewsletterHtml(
           <td style="padding:0 0 18px;">
             <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;border:1px solid #e2e8f0;border-radius:16px;overflow:hidden;">
               <tr>
+                <td>
+                  <img src="${escapeHtml(getArticleImageUrl(article))}" alt="${escapeHtml(getArticleTitle(article, language))}" style="width:100%;height:auto;display:block;" />
+                </td>
+              </tr>
+              <tr>
                 <td style="padding:20px;">
                   <div style="color:#d62828;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;padding-bottom:8px;">${escapeHtml(articleDate)}</div>
                   <div style="color:#0f172a;font-size:20px;font-weight:700;line-height:1.35;padding-bottom:8px;">${escapeHtml(getArticleTitle(article, language))}</div>
@@ -611,7 +829,8 @@ async function buildDailyNewsletterDraftPayload(
     const publishedAt = new Date(article.publishedAt);
     return publishedAt >= dailyWindow.lookbackStart && publishedAt < dailyWindow.endExclusive;
   });
-  const selectedArticles = (recentArticles.length >= 3 ? recentArticles : allArticles).slice(0, 5);
+  const basePool = recentArticles.length >= 3 ? recentArticles : allArticles;
+  const selectedArticles = selectDailyNewsletterArticles(basePool, language, 5);
 
   if (selectedArticles.length === 0) {
     throw new Error("No published articles available to generate the daily newsletter.");

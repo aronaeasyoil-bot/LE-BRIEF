@@ -6,6 +6,7 @@ import {
   getDailyCampaignKey,
   NEWSLETTER_RESEND_BCC_CHUNK_SIZE,
   normalizeNewsletterEmail,
+  selectDailyNewsletterArticles,
   shouldRetryNewsletterWithResendOnboarding,
   verifyNewsletterUnsubscribeToken,
 } from "./_core/newsletter";
@@ -73,5 +74,42 @@ describe("newsletter helpers", () => {
     expect(getDailyCampaignKey(referenceDate, "fr")).toBe("daily-fr-2026-06-18");
     expect(getDailyCampaignKey(referenceDate, "en")).toBe("daily-en-2026-06-18");
     expect(getDailyCampaignKey(referenceDate, "ar")).toBe("daily-ar-2026-06-18");
+  });
+
+  it("prioritizes Senegal first, then other African stories with images for daily newsletters", () => {
+    const articles = [
+      {
+        id: 1,
+        titleFr: "Marches mondiaux de l'energie",
+        excerptFr: "Panorama global.",
+        imageUrl: "",
+        publishedAt: "2026-06-18T07:00:00.000Z",
+      },
+      {
+        id: 2,
+        titleFr: "Nigeria : nouvelle dynamique gaziere",
+        excerptFr: "Le pays accelere ses projets d'exportation.",
+        imageUrl: "https://example.com/nigeria.jpg",
+        publishedAt: "2026-06-18T06:00:00.000Z",
+      },
+      {
+        id: 3,
+        titleFr: "Senegal : la SENELEC securise un nouveau cap",
+        excerptFr: "Dakar renforce sa trajectoire energetique.",
+        imageUrl: "https://example.com/senegal.jpg",
+        publishedAt: "2026-06-18T05:00:00.000Z",
+      },
+      {
+        id: 4,
+        titleFr: "Europe : le gaz recule en ouverture",
+        excerptFr: "Variation limitee.",
+        imageUrl: "https://example.com/europe.jpg",
+        publishedAt: "2026-06-18T08:00:00.000Z",
+      },
+    ];
+
+    const selected = selectDailyNewsletterArticles(articles, "fr", 4);
+
+    expect(selected.map((article) => article.id)).toEqual([3, 2, 4, 1]);
   });
 });
