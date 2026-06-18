@@ -18,6 +18,10 @@ const DEFAULT_FROM_EMAIL = "LE BRIEF <newsletter@lebrief.energy>";
 const RESEND_ONBOARDING_FROM_EMAIL = "LE BRIEF <onboarding@resend.dev>";
 const DEFAULT_RECIPIENT_ANCHOR = "contact@lebrief.energy";
 const EMAIL_REGEX = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi;
+const RESEND_MAX_RECIPIENTS_PER_REQUEST = 50;
+const RESEND_ANCHOR_RECIPIENT_COUNT = 1;
+export const NEWSLETTER_RESEND_BCC_CHUNK_SIZE =
+  RESEND_MAX_RECIPIENTS_PER_REQUEST - RESEND_ANCHOR_RECIPIENT_COUNT;
 
 function normalizeText(value?: string | null) {
   if (typeof value !== "string") {
@@ -511,6 +515,10 @@ function chunkArray<T>(items: T[], chunkSize: number) {
   return chunks;
 }
 
+export function chunkNewsletterRecipients(recipients: string[]) {
+  return chunkArray(recipients, NEWSLETTER_RESEND_BCC_CHUNK_SIZE);
+}
+
 export async function sendNewsletterCampaignById(campaignId: number) {
   const campaign = await getNewsletterCampaignById(campaignId);
   if (!campaign) {
@@ -541,7 +549,7 @@ export async function sendNewsletterCampaignById(campaignId: number) {
 
   try {
     let sentCount = 0;
-    for (const recipientChunk of chunkArray(recipients, 50)) {
+    for (const recipientChunk of chunkNewsletterRecipients(recipients)) {
       const chunkHtml = recipientChunk.reduce((html, email) => {
         return html.replaceAll(
           buildNewsletterUnsubscribeUrl(DEFAULT_RECIPIENT_ANCHOR),

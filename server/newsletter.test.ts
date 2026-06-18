@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   buildNewsletterUnsubscribeUrl,
+  chunkNewsletterRecipients,
   extractEmailsFromText,
+  NEWSLETTER_RESEND_BCC_CHUNK_SIZE,
   normalizeNewsletterEmail,
   shouldRetryNewsletterWithResendOnboarding,
   verifyNewsletterUnsubscribeToken,
@@ -51,5 +53,16 @@ describe("newsletter helpers", () => {
         'Resend send failed (429): {"message":"Too many requests"}',
       ),
     ).toBe(false);
+  });
+
+  it("splits newsletter recipients so anchor plus bcc stay within resend limits", () => {
+    expect(NEWSLETTER_RESEND_BCC_CHUNK_SIZE).toBe(49);
+
+    const recipients = Array.from({ length: 50 }, (_, index) => `reader${index + 1}@example.com`);
+    const chunks = chunkNewsletterRecipients(recipients);
+
+    expect(chunks).toHaveLength(2);
+    expect(chunks[0]).toHaveLength(49);
+    expect(chunks[1]).toHaveLength(1);
   });
 });
