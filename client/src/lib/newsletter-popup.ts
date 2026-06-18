@@ -11,25 +11,24 @@ type NewsletterPopupState =
       timestamp: number;
     };
 
-const STORAGE_KEY = "lebrief-newsletter-popup-state";
-const AUTO_DISMISS_COOLDOWN_MS = 12 * 60 * 60 * 1000;
-const MANUAL_DISMISS_COOLDOWN_MS = 24 * 60 * 60 * 1000;
+const LEGACY_STORAGE_KEY = "lebrief-newsletter-popup-state";
+const DISMISS_STORAGE_KEY = "lebrief-newsletter-popup-dismissed";
+const SUBSCRIBED_STORAGE_KEY = "lebrief-newsletter-popup-subscribed";
 
-function canUseStorage() {
+function canUseLocalStorage() {
   return typeof window !== "undefined" && typeof window.localStorage !== "undefined";
 }
 
-export function getNewsletterPopupState(): NewsletterPopupState | null {
-  if (!canUseStorage()) {
+function canUseSessionStorage() {
+  return typeof window !== "undefined" && typeof window.sessionStorage !== "undefined";
+}
+
+function readState(raw: string | null): NewsletterPopupState | null {
+  if (!raw) {
     return null;
   }
 
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) {
-      return null;
-    }
-
     const parsed = JSON.parse(raw) as NewsletterPopupState | null;
     if (!parsed || typeof parsed !== "object" || typeof parsed.timestamp !== "number") {
       return null;
@@ -49,20 +48,100 @@ export function getNewsletterPopupState(): NewsletterPopupState | null {
   }
 }
 
-function setNewsletterPopupState(state: NewsletterPopupState) {
-  if (!canUseStorage()) {
+function removeLegacyDismissedState() {
+  if (!canUseLocalStorage()) {
     return;
   }
 
   try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    const legacyState = readState(window.localStorage.getItem(LEGACY_STORAGE_KEY));
+    if (legacyState?.status === "dismissed") {
+      window.localStorage.removeItem(LEGACY_STORAGE_KEY);
+    }
+  } catch {
+    // Ignore storage cleanup issues.
+  }
+}
+
+function migrateLegacySubscribedState() {
+  if (!canUseLocalStorage()) {
+    return null;
+  }
+
+  try {
+    const subscribedState = readState(window.localStorage.getItem(SUBSCRIBED_STORAGE_KEY));
+    if (subscribedState?.status === "subscribed") {
+      return subscribedState;
+    }
+
+    const legacyState = readState(window.localStorage.getItem(LEGACY_STORAGE_KEY));
+    if (legacyState?.status === "subscribed") {
+      window.localStorage.setItem(SUBSCRIBED_STORAGE_KEY, JSON.stringify(legacyState));
+      window.localStorage.removeItem(LEGACY_STORAGE_KEY);
+      return legacyState;
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
+}
+
+export function getNewsletterPopupState(): NewsletterPopupState | null {
+  if (!canUseLocalStorage() && !canUseSessionStorage()) {
+    return null;
+  }
+
+  const subscribedState = migrateLegacySubscribedState();
+  if (subscribedState?.status === "subscribed") {
+    return subscribedState;
+  }
+
+  removeLegacyDismissedState();
+
+  if (canUseSessionStorage()) {
+    const dismissedState = readState(window.sessionStorage.getItem(DISMISS_STORAGE_KEY));
+    if (dismissedState?.status === "dismissed") {
+      return dismissedState;
+    }
+  }
+
+  if (canUseLocalStorage()) {
+    const state = readState(window.localStorage.getItem(SUBSCRIBED_STORAGE_KEY));
+    if (state?.status === "subscribed") {
+      return state;
+    }
+  }
+
+  return null;
+}
+
+function setDismissedState(state: NewsletterPopupState) {
+  if (!canUseSessionStorage()) {
+    return null;
+  }
+
+  try {
+    window.sessionStorage.setItem(DISMISS_STORAGE_KEY, JSON.stringify(state));
+  } catch {
+    // Ignore storage write issues.
+  }
+}
+
+function setSubscribedState(state: NewsletterPopupState) {
+  if (!canUseLocalStorage()) {
+    return;
+  }
+
+  try {
+    window.localStorage.setItem(SUBSCRIBED_STORAGE_KEY, JSON.stringify(state));
   } catch {
     // Ignore storage write issues.
   }
 }
 
 export function markNewsletterPopupDismissed(reason: NewsletterPopupDismissReason) {
-  setNewsletterPopupState({
+  setDismissedState({
     reason,
     status: "dismissed",
     timestamp: Date.now(),
@@ -70,24 +149,17 @@ export function markNewsletterPopupDismissed(reason: NewsletterPopupDismissReaso
 }
 
 export function markNewsletterPopupSubscribed() {
-  setNewsletterPopupState({
+  setSubscribedState({
     status: "subscribed",
     timestamp: Date.now(),
   });
 }
 
-export function shouldSuppressNewsletterPopup(now = Date.now()) {
+export function shouldSuppressNewsletterPopup() {
   const state = getNewsletterPopupState();
   if (!state) {
     return false;
   }
 
-  if (state.status === "subscribed") {
-    return true;
-  }
-
-  const cooldown =
-    state.reason === "manual" ? MANUAL_DISMISS_COOLDOWN_MS : AUTO_DISMISS_COOLDOWN_MS;
-
-  return now - state.timestamp < cooldown;
+  return state.status === "subscribed" || state.status === "dismissed";
 }
