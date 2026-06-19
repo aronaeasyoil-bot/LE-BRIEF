@@ -54,12 +54,13 @@ describe("seo helpers", () => {
       updatedAt: "2026-06-19T12:00:00.000Z",
     });
 
-    expect(html).toContain("LE BRIEF - Edition speciale Senegal | LE BRIEF");
+    expect(html).toContain("LE BRIEF - Edition speciale Senegal");
     expect(html).toContain("https://www.lebrief.energy/magazine/88");
+    expect(html).toContain("https://www.lebrief.energy/magazine/88#reader");
     expect(html).toContain("https://www.lebrief.energy/manus-storage/le-brief/covers/magazine-88.jpg");
     expect(html).toContain('"@type":"PublicationIssue"');
     expect(html).toContain("Numero 88");
-    expect(html).toContain("Telecharger le PDF");
+    expect(html).toContain("Lire le magazine sur LE BRIEF");
   });
 
   it("builds a sitemap containing canonical URLs", () => {

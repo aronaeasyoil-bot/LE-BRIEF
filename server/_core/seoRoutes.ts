@@ -2,6 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { getAllCategories, getArticleById, getMagazineById, getMagazines, getPublishedArticles, getPublishedEvents } from "../db";
+import { resolveMagazineDocumentUrl } from "./magazineDocuments";
 import {
   buildNewsSitemapXml,
   buildRobotsTxt,
@@ -180,7 +181,57 @@ export function registerSeoRoutes(app: any) {
     }
 
     try {
-      const [template, magazine] = await Promise.all([loadAppTemplate(), getMagazineById(magazineId)]);
+      const magazine = await getMagazineById(magazineId);
+
+      if (req.query?.asset === "file") {
+        if (!magazine?.pdfUrl) {
+          res.status(404).send("Magazine file not found");
+          return;
+        }
+
+        const resolvedUrl = await resolveMagazineDocumentUrl(magazine.pdfUrl);
+        if (!resolvedUrl) {
+          res.status(404).send("Magazine file not found");
+          return;
+        }
+
+        const upstream = await fetch(resolvedUrl, {
+          headers: {
+            "User-Agent": "LE BRIEF Magazine Proxy",
+          },
+          redirect: "follow",
+        });
+
+        if (!upstream.ok) {
+          res.status(502).send("Unable to fetch the magazine file");
+          return;
+        }
+
+        const buffer = Buffer.from(await upstream.arrayBuffer());
+        const upstreamType = upstream.headers.get("content-type") || "application/pdf";
+        const upstreamLength = upstream.headers.get("content-length");
+        const fileName =
+          typeof magazine.issueNumber === "number"
+            ? `LE-BRIEF-Magazine-${magazine.issueNumber}.pdf`
+            : `LE-BRIEF-Magazine-${magazine.id}.pdf`;
+
+        res.status(200);
+        res.setHeader("Cache-Control", NO_CACHE_HEADER);
+        res.setHeader("Content-Type", upstreamType.includes("pdf") ? upstreamType : "application/pdf");
+        res.setHeader(
+          "Content-Disposition",
+          req.query?.download ? `attachment; filename="${fileName}"` : `inline; filename="${fileName}"`,
+        );
+
+        if (upstreamLength) {
+          res.setHeader("Content-Length", upstreamLength);
+        }
+
+        res.end(buffer);
+        return;
+      }
+
+      const template = await loadAppTemplate();
 
       if (!magazine) {
         res.status(404).type("html").send(template);
@@ -192,6 +243,66 @@ export function registerSeoRoutes(app: any) {
     } catch (error) {
       console.error("[SEO] Magazine render failed:", error);
       res.status(500).send("Magazine render failed");
+    }
+  });
+
+  app.get("/api/magazine-file/:id", async (req: any, res: any) => {
+    const magazineId = Number(req.params?.id);
+
+    if (!Number.isInteger(magazineId) || magazineId <= 0) {
+      res.status(400).send("Invalid magazine id");
+      return;
+    }
+
+    try {
+      const magazine = await getMagazineById(magazineId);
+      if (!magazine?.pdfUrl) {
+        res.status(404).send("Magazine file not found");
+        return;
+      }
+
+      const resolvedUrl = await resolveMagazineDocumentUrl(magazine.pdfUrl);
+      if (!resolvedUrl) {
+        res.status(404).send("Magazine file not found");
+        return;
+      }
+
+      const upstream = await fetch(resolvedUrl, {
+        headers: {
+          "User-Agent": "LE BRIEF Magazine Proxy",
+        },
+        redirect: "follow",
+      });
+
+      if (!upstream.ok) {
+        res.status(502).send("Unable to fetch the magazine file");
+        return;
+      }
+
+      const buffer = Buffer.from(await upstream.arrayBuffer());
+      const upstreamType = upstream.headers.get("content-type") || "application/pdf";
+      const upstreamLength = upstream.headers.get("content-length");
+      const fileName =
+        typeof magazine.issueNumber === "number"
+          ? `LE-BRIEF-Magazine-${magazine.issueNumber}.pdf`
+          : `LE-BRIEF-Magazine-${magazine.id}.pdf`;
+
+      res.status(200);
+      res.setHeader("Cache-Control", NO_CACHE_HEADER);
+      res.setHeader("Content-Type", upstreamType.includes("pdf") ? upstreamType : "application/pdf");
+      res.setHeader(
+        "Content-Disposition",
+        req.query?.download ? `attachment; filename="${fileName}"` : `inline; filename="${fileName}"`,
+      );
+
+      if (upstreamLength) {
+        res.setHeader("Content-Length", upstreamLength);
+      }
+
+      res.end(buffer);
+    } catch (error) {
+      console.error("[SEO] Magazine file proxy failed:", error);
+      res.status(500).send("Magazine file proxy failed");
     }
   });
 

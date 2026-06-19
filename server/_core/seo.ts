@@ -1,3 +1,5 @@
+import { getMagazineDocumentProxyUrl } from "./magazineDocuments";
+
 const SEO_START_MARKER = "<!-- LE_BRIEF_SEO_START -->";
 const SEO_END_MARKER = "<!-- LE_BRIEF_SEO_END -->";
 const APP_FALLBACK_MARKER = "<!-- LE_BRIEF_APP_FALLBACK -->";
@@ -504,13 +506,28 @@ function pickMagazineTitle(magazine: MagazineLike) {
 }
 
 function pickMagazineDescription(magazine: MagazineLike) {
+  return "";
+}
+
+function pickMagazineLead(magazine: MagazineLike) {
   const parts = [
-    pickMagazineTitle(magazine),
     typeof magazine.issueNumber === "number" ? `Numero ${magazine.issueNumber}` : undefined,
-    "Couverture officielle et acces au magazine LE BRIEF sur le site.",
+    "Consultez la couverture et lisez ce numero directement sur LE BRIEF.",
   ].filter(Boolean);
 
-  return truncateText(parts.join(" - "), 260);
+  return parts.join(" - ");
+}
+
+function getMagazineReaderUrl(magazine: MagazineLike) {
+  return toSiteUrl(`/magazine/${magazine.id}#reader`);
+}
+
+function getMagazineDocumentUrl(magazine: MagazineLike) {
+  return magazine.pdfUrl ? getMagazineDocumentProxyUrl(magazine.id) : undefined;
+}
+
+function canEmbedMagazineDocument(magazine: MagazineLike) {
+  return Boolean(magazine.pdfUrl);
 }
 
 function buildMagazineJsonLd(magazine: MagazineLike, title: string, description: string, imageUrl: string) {
@@ -542,7 +559,7 @@ function buildMagazineJsonLd(magazine: MagazineLike, title: string, description:
   };
 }
 
-function buildMagazineFallbackMarkup(magazine: MagazineLike, title: string, description: string, imageUrl: string) {
+function buildMagazineFallbackMarkup(magazine: MagazineLike, title: string, lead: string, imageUrl: string) {
   const issueNumber =
     typeof magazine.issueNumber === "number"
       ? `<p style="margin:0 0 14px;color:#b91c1c;font-size:14px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;">Numero ${magazine.issueNumber}</p>`
@@ -551,26 +568,38 @@ function buildMagazineFallbackMarkup(magazine: MagazineLike, title: string, desc
   const publishedLine = publishedAt
     ? `<p style="margin:18px 0 0;color:#4b5563;font-size:14px;font-weight:600;">Edition ${escapeHtml(publishedAt)}</p>`
     : "";
-  const pdfUrl = toAbsoluteUrl(magazine.pdfUrl);
-  const actionLink = pdfUrl
-    ? `<a href="${escapeHtml(pdfUrl)}" style="display:inline-block;margin-top:24px;background:#b91c1c;color:#ffffff;text-decoration:none;font-weight:700;padding:14px 22px;border-radius:999px;">Telecharger le PDF</a>`
+  const readerUrl = getMagazineReaderUrl(magazine);
+  const documentUrl = getMagazineDocumentUrl(magazine);
+  const canEmbedDocument = canEmbedMagazineDocument(magazine);
+  const actionLink = `<a href="${escapeHtml(readerUrl)}" style="display:inline-block;margin-top:24px;background:#b91c1c;color:#ffffff;text-decoration:none;font-weight:700;padding:14px 22px;border-radius:999px;">Lire le magazine sur LE BRIEF</a>`;
+  const downloadLink = documentUrl
+    ? `<a href="${escapeHtml(documentUrl)}" style="display:inline-block;margin-top:16px;color:#111827;text-decoration:none;font-weight:700;">Telecharger le PDF</a>`
+    : "";
+  const readerSection = canEmbedDocument && documentUrl
+    ? `<section id="reader" style="margin-top:40px;border:1px solid #e5e7eb;border-radius:24px;overflow:hidden;background:#f8fafc;">
+        <iframe src="${escapeHtml(`${documentUrl}#toolbar=0&navpanes=0&view=FitH`)}" title="${escapeHtml(title)}" style="display:block;width:100%;height:85vh;min-height:720px;border:0;"></iframe>
+      </section>`
     : "";
 
   return `
       <main style="margin:0 auto;max-width:1080px;padding:160px 24px 48px;color:#111827;font-family:Inter,Arial,sans-serif;background:#ffffff;">
         <section style="display:grid;gap:32px;align-items:center;grid-template-columns:minmax(260px,380px) minmax(0,1fr);">
           <div>
-            <img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(title)}" style="width:100%;height:auto;border-radius:24px;display:block;box-shadow:0 30px 70px rgba(15,23,42,.18);" />
+            <a href="${escapeHtml(readerUrl)}" style="display:block;">
+              <img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(title)}" style="width:100%;height:auto;border-radius:24px;display:block;box-shadow:0 30px 70px rgba(15,23,42,.18);" />
+            </a>
           </div>
           <div>
             <p style="margin:0 0 10px;color:#a16207;font-size:13px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;">Kiosque LE BRIEF</p>
             ${issueNumber}
             <h1 style="margin:0 0 16px;font-size:42px;line-height:1.15;">${escapeHtml(title)}</h1>
-            <p style="margin:0;color:#374151;font-size:18px;line-height:1.75;">${escapeHtml(description)}</p>
+            <p style="margin:0;color:#374151;font-size:18px;line-height:1.75;">${escapeHtml(lead)}</p>
             ${actionLink}
+            ${downloadLink}
             ${publishedLine}
           </div>
         </section>
+        ${readerSection}
       </main>
   `.trim();
 }
@@ -606,6 +635,7 @@ export function renderArticleHtml(template: string, article: ArticleLike) {
 export function renderMagazineHtml(template: string, magazine: MagazineLike) {
   const title = pickMagazineTitle(magazine);
   const description = pickMagazineDescription(magazine);
+  const lead = pickMagazineLead(magazine);
   const canonicalUrl = toSiteUrl(`/magazine/${magazine.id}`);
   const imageUrl = toAbsoluteUrl(magazine.coverImageUrl) || DEFAULT_PREVIEW_IMAGE_URL;
   const seoBlock = buildSeoBlock({
@@ -613,12 +643,12 @@ export function renderMagazineHtml(template: string, magazine: MagazineLike) {
     description,
     imageUrl,
     jsonLd: [buildOrganizationJsonLd(), buildMagazineJsonLd(magazine, title, description, imageUrl)],
-    title: `${title} | ${SITE_NAME}`,
+    title,
     type: "website",
   });
 
   const withSeo = replaceBetweenMarkers(template, SEO_START_MARKER, SEO_END_MARKER, seoBlock);
-  return withSeo.replace(APP_FALLBACK_MARKER, buildMagazineFallbackMarkup(magazine, title, description, imageUrl));
+  return withSeo.replace(APP_FALLBACK_MARKER, buildMagazineFallbackMarkup(magazine, title, lead, imageUrl));
 }
 
 export function buildSitemapXml(urls: SitemapUrl[]) {

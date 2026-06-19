@@ -528,9 +528,8 @@ export const appRouter = router({
 
   magazines: router({
     list: publicProcedure.query(async () => {
-      const db = await (await import("./db")).getDb();
-      if (!db) return [];
-      return (await db.select().from(magazines).orderBy(desc(magazines.publishedAt)).limit(10)).map(normalizeMagazineRecord);
+      const { getMagazines } = await import("./db");
+      return (await getMagazines()).slice(0, 10).map(normalizeMagazineRecord);
     }),
     byId: publicProcedure
       .input(z.object({ id: z.number() }))
@@ -540,9 +539,8 @@ export const appRouter = router({
         return magazine ? normalizeMagazineRecord(magazine) : null;
       }),
     all: adminProcedure.query(async () => {
-      const db = await (await import("./db")).getDb();
-      if (!db) return [];
-      return (await db.select().from(magazines).orderBy(desc(magazines.publishedAt))).map(normalizeMagazineRecord);
+      const { getMagazines } = await import("./db");
+      return (await getMagazines()).map(normalizeMagazineRecord);
     }),
     create: adminProcedure
       .input(z.object({

@@ -649,8 +649,8 @@ function getMagazinePageUrl(magazineId: number) {
   return `${SITE_URL}/magazine/${magazineId}`;
 }
 
-function getMagazineDownloadUrl(magazine: any) {
-  return toAbsoluteSiteUrl(magazine.pdfUrl) || getMagazinePageUrl(magazine.id);
+function getMagazineReaderUrl(magazine: any) {
+  return `${getMagazinePageUrl(magazine.id)}#reader`;
 }
 
 export function getWeeklyMagazineCampaignKey(magazineId: number) {
@@ -665,7 +665,7 @@ function buildWeeklyMagazineNewsletterHtml(magazine: any, referenceDate: Date) {
   const coverUrl = getMagazineCoverUrl(magazine);
   const magazineTitle = getMagazineTitle(magazine);
   const magazinePageUrl = getMagazinePageUrl(magazine.id);
-  const magazineDownloadUrl = getMagazineDownloadUrl(magazine);
+  const magazineReaderUrl = getMagazineReaderUrl(magazine);
   const issueLabel =
     typeof magazine.issueNumber === "number" ? `Numero ${magazine.issueNumber}` : "Magazine hebdomadaire";
   const formattedDate = formatFrenchDate(referenceDate);
@@ -706,13 +706,12 @@ function buildWeeklyMagazineNewsletterHtml(magazine: any, referenceDate: Date) {
                   Edition du ${escapeHtml(formattedDate)}. Consultez la couverture, ouvrez la page du magazine sur le site et accedez au document complet.
                 </div>
                 <div style="padding-bottom:24px;">
-                  <img src="${escapeHtml(coverUrl)}" alt="${escapeHtml(magazineTitle)}" style="width:100%;height:auto;border-radius:20px;display:block;" />
+                  <a href="${escapeHtml(magazinePageUrl)}" style="display:block;">
+                    <img src="${escapeHtml(coverUrl)}" alt="${escapeHtml(magazineTitle)}" style="width:100%;height:auto;border-radius:20px;display:block;" />
+                  </a>
                 </div>
                 <div style="padding-bottom:12px;">
-                  <a href="${escapeHtml(magazinePageUrl)}" style="display:inline-block;background:#d62828;color:#ffffff;text-decoration:none;font-weight:700;padding:14px 22px;border-radius:999px;">Voir le magazine sur LE BRIEF</a>
-                </div>
-                <div style="padding-bottom:26px;">
-                  <a href="${escapeHtml(magazineDownloadUrl)}" style="display:inline-block;color:#0f172a;text-decoration:none;font-weight:700;padding:12px 4px;">Telecharger le magazine</a>
+                  <a href="${escapeHtml(magazineReaderUrl)}" style="display:inline-block;background:#d62828;color:#ffffff;text-decoration:none;font-weight:700;padding:14px 22px;border-radius:999px;">Lire le magazine sur LE BRIEF</a>
                 </div>
                 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;border-top:1px solid #e2e8f0;margin-top:8px;">
                   <tr>
@@ -739,7 +738,7 @@ function buildWeeklyMagazineNewsletterText(magazine: any, referenceDate: Date) {
   const issueLabel =
     typeof magazine.issueNumber === "number" ? `Numero ${magazine.issueNumber}` : "Magazine hebdomadaire";
   const pageUrl = getMagazinePageUrl(magazine.id);
-  const downloadUrl = getMagazineDownloadUrl(magazine);
+  const readerUrl = getMagazineReaderUrl(magazine);
 
   return [
     "LE BRIEF",
@@ -749,7 +748,7 @@ function buildWeeklyMagazineNewsletterText(magazine: any, referenceDate: Date) {
     `Edition du ${formatFrenchDate(referenceDate)}`,
     "",
     `Voir sur le site: ${pageUrl}`,
-    `Telecharger: ${downloadUrl}`,
+    `Lire dans LE BRIEF: ${readerUrl}`,
     "",
     `Se desinscrire: ${buildNewsletterUnsubscribeUrl(DEFAULT_RECIPIENT_ANCHOR)}`,
   ].join("\n");

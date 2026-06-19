@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { PREVIEW_IMAGE_URL, SITE_DESCRIPTION, SITE_NAME, getAbsoluteAssetUrl, getSiteUrl } from "@/lib/site";
 
 type PageMetaOptions = {
+  appendSiteName?: boolean;
   description?: string;
   image?: string;
   path?: string;
@@ -43,6 +44,7 @@ function toAbsoluteUrl(pathOrUrl: string) {
 }
 
 export function usePageMeta({
+  appendSiteName = true,
   description,
   image,
   path,
@@ -50,8 +52,12 @@ export function usePageMeta({
   type = "website",
 }: PageMetaOptions) {
   useEffect(() => {
-    const resolvedTitle = title ? `${title} | ${SITE_NAME}` : `${SITE_NAME} | Energy, Economy & Events`;
-    const resolvedDescription = description || SITE_DESCRIPTION;
+    const resolvedTitle = title
+      ? appendSiteName
+        ? `${title} | ${SITE_NAME}`
+        : title
+      : `${SITE_NAME} | Energy, Economy & Events`;
+    const resolvedDescription = description ?? SITE_DESCRIPTION;
     const resolvedUrl = getSiteUrl(path || window.location.pathname);
     const resolvedImage = toAbsoluteUrl(image || PREVIEW_IMAGE_URL);
 
@@ -70,5 +76,5 @@ export function usePageMeta({
     upsertMeta('meta[name="twitter:image"]', { content: resolvedImage, name: "twitter:image" });
 
     upsertLink("canonical", resolvedUrl);
-  }, [description, image, path, title, type]);
+  }, [appendSiteName, description, image, path, title, type]);
 }

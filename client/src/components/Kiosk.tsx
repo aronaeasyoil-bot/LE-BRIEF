@@ -2,7 +2,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { shareLink } from "@/lib/share";
 import { getSiteUrl } from "@/lib/site";
 import { motion } from "framer-motion";
-import { Download, Share2 } from "lucide-react";
+import { BookOpen, Share2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Link } from "wouter";
@@ -12,6 +12,26 @@ interface KioskProps {
 }
 
 const ARCHIVE_BATCH_SIZE = 6;
+
+function getMagazineOrderTimestamp(magazine: any) {
+  return Date.parse(magazine?.createdAt || "") || Date.parse(magazine?.publishedAt || "") || 0;
+}
+
+function sortMagazinesForKiosk(magazines: any[]) {
+  return [...magazines].sort((left, right) => {
+    const timeDelta = getMagazineOrderTimestamp(right) - getMagazineOrderTimestamp(left);
+    if (timeDelta !== 0) {
+      return timeDelta;
+    }
+
+    const issueDelta = Number(right?.issueNumber || 0) - Number(left?.issueNumber || 0);
+    if (issueDelta !== 0) {
+      return issueDelta;
+    }
+
+    return Number(right?.id || 0) - Number(left?.id || 0);
+  });
+}
 
 function getMagazineTitle(magazine: any, lang: string) {
   return lang === "ar"
@@ -29,18 +49,19 @@ export default function Kiosk({ magazines }: KioskProps) {
     return null;
   }
 
-  const latestMagazine = magazines[0];
-  const archiveMagazines = magazines.slice(1);
+  const sortedMagazines = sortMagazinesForKiosk(magazines);
+  const latestMagazine = sortedMagazines[0];
+  const archiveMagazines = sortedMagazines.slice(1);
   const visibleArchiveMagazines = archiveMagazines.slice(0, visibleArchiveCount);
   const hasMoreArchiveMagazines = visibleArchiveCount < archiveMagazines.length;
   const canCollapseArchive = visibleArchiveCount > ARCHIVE_BATCH_SIZE;
 
-  const downloadLabel =
-    lang === "fr" ? "Telecharger PDF" : lang === "ar" ? "تحميل PDF" : "Download PDF";
+  const readLabel =
+    lang === "fr" ? "Lire le magazine" : lang === "ar" ? "قراءة المجلة" : "Read magazine";
   const shareLabel = lang === "fr" ? "Partager" : lang === "ar" ? "مشاركة" : "Share";
   const archiveLabel = lang === "fr" ? "Archives" : lang === "ar" ? "الأرشيف" : "Archive";
   const previousIssuesLabel =
-    lang === "fr" ? "Numeros precedents" : lang === "ar" ? "الاعداد السابقة" : "Previous issues";
+    lang === "fr" ? "Numeros precedents" : lang === "ar" ? "الأعداد السابقة" : "Previous issues";
   const issueLabel = lang === "fr" ? "NUMERO" : lang === "ar" ? "العدد" : "ISSUE";
   const showMoreArchiveLabel =
     lang === "fr" ? "Voir toutes les archives" : lang === "ar" ? "عرض كل الأرشيف" : "View all archive";
@@ -50,7 +71,6 @@ export default function Kiosk({ magazines }: KioskProps) {
   const handleShare = async () => {
     const magazineUrl = getSiteUrl(`/magazine/${latestMagazine.id}`);
     const result = await shareLink("native", {
-      text: latestMagazine.titleFr || latestMagazine.titleEn || latestMagazine.titleAr,
       title: getMagazineTitle(latestMagazine, lang),
       url: magazineUrl,
     });
@@ -120,14 +140,13 @@ export default function Kiosk({ magazines }: KioskProps) {
             </div>
 
             <div className="flex flex-col gap-3 sm:flex-row">
-              <a
-                href={latestMagazine.pdfUrl}
-                download
+              <Link
+                href={`/magazine/${latestMagazine.id}#reader`}
                 className="flex items-center justify-center gap-2 rounded-lg bg-primary px-6 py-3 font-medium text-primary-foreground transition-colors hover:bg-primary/90"
               >
-                <Download className="h-4 w-4" />
-                {downloadLabel}
-              </a>
+                <BookOpen className="h-4 w-4" />
+                {readLabel}
+              </Link>
               <button
                 type="button"
                 onClick={handleShare}
@@ -149,17 +168,15 @@ export default function Kiosk({ magazines }: KioskProps) {
 
                 <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-6">
                   {visibleArchiveMagazines.map((magazine, index) => (
-                    <motion.a
+                    <motion.div
                       key={magazine.id}
-                      href={magazine.pdfUrl}
-                      download
                       initial={{ opacity: 0, y: 10 }}
                       whileInView={{ opacity: 1, y: 0 }}
                       viewport={{ once: true }}
                       transition={{ delay: index * 0.05 }}
                       className="group"
                     >
-                      <div className="space-y-2">
+                      <Link href={`/magazine/${magazine.id}`} className="block space-y-2">
                         <div className="relative overflow-hidden rounded-lg border border-border transition-colors group-hover:border-gold">
                           {magazine.coverImageUrl ? (
                             <img
@@ -181,8 +198,8 @@ export default function Kiosk({ magazines }: KioskProps) {
                             {getMagazineTitle(magazine, lang)}
                           </p>
                         </div>
-                      </div>
-                    </motion.a>
+                      </Link>
+                    </motion.div>
                   ))}
                 </div>
 

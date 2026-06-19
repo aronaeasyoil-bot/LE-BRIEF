@@ -28,6 +28,10 @@
       "destination": "/api/render-magazine?id=:id"
     },
     {
+      "source": "/api/magazine-file/:id",
+      "destination": "/api/render-magazine?id=:id&asset=file"
+    },
+    {
       "source": "/manus-storage/:path*",
       "destination": "/api/manus-storage?path=:path*"
     },

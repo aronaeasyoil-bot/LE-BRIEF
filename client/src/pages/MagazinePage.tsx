@@ -2,15 +2,17 @@ import Footer from "@/components/Footer";
 import Navbar from "@/components/Navbar";
 import WhatsAppButton from "@/components/WhatsAppButton";
 import { Button } from "@/components/ui/button";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { usePageMeta } from "@/hooks/usePageMeta";
-import { shareLink, type SharePlatform } from "@/lib/share";
 import { PREVIEW_IMAGE_URL, SITE_DESCRIPTION, getSiteUrl } from "@/lib/site";
+import { shareLink, type SharePlatform } from "@/lib/share";
 import { trpc } from "@/lib/trpc";
 import { motion } from "framer-motion";
-import { ArrowLeft, Copy, Download, MessageCircle, Share2 } from "lucide-react";
+import { ArrowLeft, BookOpen, Copy, Download, MessageCircle, Share2 } from "lucide-react";
 import { toast } from "sonner";
 import { Link, useParams } from "wouter";
-import { useLanguage } from "@/contexts/LanguageContext";
+
+const MAGAZINE_READER_ID = "reader";
 
 function getMagazineTitle(magazine: any, lang: string) {
   return lang === "ar"
@@ -18,6 +20,10 @@ function getMagazineTitle(magazine: any, lang: string) {
     : lang === "en"
       ? magazine.titleEn || magazine.titleFr
       : magazine.titleFr;
+}
+
+function getMagazineDocumentProxyUrl(magazineId: number) {
+  return getSiteUrl(`/api/magazine-file/${magazineId}`);
 }
 
 export default function MagazinePage() {
@@ -31,18 +37,21 @@ export default function MagazinePage() {
 
   const magazineTitle = magazine ? getMagazineTitle(magazine, lang) : "Kiosque";
   const magazineUrl = getSiteUrl(`/magazine/${magazineId}`);
-  const magazineDescription = magazine
+  const pageLead = magazine
     ? `${
         lang === "fr"
-          ? "Retrouvez la couverture et le telechargement du magazine"
+          ? "Consultez la couverture et lisez ce numero directement sur LE BRIEF."
           : lang === "ar"
-            ? "اكتشف غلاف المجلة وتنزيلها"
-            : "Discover the cover and download for"
-      } ${magazineTitle}.`
+            ? "اطلع على الغلاف واقرأ هذا العدد مباشرة على LE BRIEF."
+            : "See the cover and read this issue directly on LE BRIEF."
+      }`
     : SITE_DESCRIPTION;
+  const embeddedDocumentUrl = magazine?.pdfUrl ? getMagazineDocumentProxyUrl(magazineId) : "";
+  const canEmbedDocument = Boolean(magazine?.pdfUrl);
 
   usePageMeta({
-    description: magazineDescription,
+    appendSiteName: false,
+    description: "",
     image: magazine?.coverImageUrl || PREVIEW_IMAGE_URL,
     path: `/magazine/${magazineId}`,
     title: magazineTitle,
@@ -54,7 +63,6 @@ export default function MagazinePage() {
 
     try {
       const result = await shareLink(platform, {
-        text: magazineDescription,
         title: magazineTitle,
         url: magazineUrl,
       });
@@ -65,7 +73,7 @@ export default function MagazinePage() {
         );
       }
     } catch {
-      toast.error(lang === "fr" ? "Le partage a echoue" : lang === "ar" ? "فشلت المشاركة" : "Share failed");
+      toast.error(lang === "fr" ? "Le partage a echoue" : lang === "ar" ? "فشل المشاركة" : "Share failed");
     }
   };
 
@@ -92,6 +100,11 @@ export default function MagazinePage() {
     return null;
   }
 
+  const issueLabel = lang === "fr" ? "Numero" : lang === "ar" ? "العدد" : "Issue";
+  const readLabel = lang === "fr" ? "Lire le magazine" : lang === "ar" ? "قراءة المجلة" : "Read magazine";
+  const downloadLabel =
+    lang === "fr" ? "Telecharger le PDF" : lang === "ar" ? "تحميل PDF" : "Download PDF";
+
   return (
     <div className="min-h-screen bg-background" dir={rtl ? "rtl" : "ltr"}>
       <Navbar />
@@ -111,7 +124,21 @@ export default function MagazinePage() {
             className="grid gap-10 lg:grid-cols-[380px_minmax(0,1fr)]"
           >
             <div>
-              {magazine.coverImageUrl ? (
+              {canEmbedDocument ? (
+                <a href={`#${MAGAZINE_READER_ID}`} className="group block">
+                  {magazine.coverImageUrl ? (
+                    <img
+                      src={magazine.coverImageUrl}
+                      alt={magazineTitle}
+                      className="w-full rounded-2xl border border-border object-cover shadow-2xl transition-transform duration-300 group-hover:scale-[1.01]"
+                    />
+                  ) : (
+                    <div className="flex aspect-[3/4] w-full items-center justify-center rounded-2xl border border-border bg-card text-2xl font-bold text-foreground">
+                      LE BRIEF
+                    </div>
+                  )}
+                </a>
+              ) : magazine.coverImageUrl ? (
                 <img
                   src={magazine.coverImageUrl}
                   alt={magazineTitle}
@@ -132,7 +159,7 @@ export default function MagazinePage() {
                 {magazineTitle}
               </h1>
               <p className="mt-4 text-sm text-muted-foreground">
-                {lang === "fr" ? "Numero" : lang === "ar" ? "العدد" : "Issue"} {magazine.issueNumber}
+                {issueLabel} {magazine.issueNumber}
                 {" - "}
                 {magazine.publishedAt
                   ? new Date(magazine.publishedAt).toLocaleDateString(
@@ -142,18 +169,37 @@ export default function MagazinePage() {
                   : ""}
               </p>
               <p className="mt-6 max-w-3xl text-base leading-relaxed text-muted-foreground">
-                {magazineDescription}
+                {pageLead}
               </p>
 
               <div className="mt-8 flex flex-wrap gap-3">
-                <a
-                  href={magazine.pdfUrl}
-                  download
-                  className="inline-flex items-center gap-2 rounded-lg bg-primary px-6 py-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-                >
-                  <Download className="h-4 w-4" />
-                  {lang === "fr" ? "Telecharger le PDF" : lang === "ar" ? "تحميل PDF" : "Download PDF"}
-                </a>
+                {canEmbedDocument ? (
+                  <a
+                    href={`#${MAGAZINE_READER_ID}`}
+                    className="inline-flex items-center gap-2 rounded-lg bg-primary px-6 py-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+                  >
+                    <BookOpen className="h-4 w-4" />
+                    {readLabel}
+                  </a>
+                ) : (
+                  <a
+                    href={magazineUrl}
+                    className="inline-flex items-center gap-2 rounded-lg bg-primary px-6 py-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+                  >
+                    <BookOpen className="h-4 w-4" />
+                    {readLabel}
+                  </a>
+                )}
+                {embeddedDocumentUrl ? (
+                  <a
+                    href={embeddedDocumentUrl}
+                    download
+                    className="inline-flex items-center gap-2 rounded-lg border border-border px-6 py-3 text-sm font-medium text-foreground transition-colors hover:bg-secondary"
+                  >
+                    <Download className="h-4 w-4" />
+                    {downloadLabel}
+                  </a>
+                ) : null}
                 <Button
                   type="button"
                   variant="outline"
@@ -187,6 +233,43 @@ export default function MagazinePage() {
               </div>
             </div>
           </motion.section>
+
+          {canEmbedDocument ? (
+            <motion.section
+              id={MAGAZINE_READER_ID}
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mt-12 rounded-3xl border border-border bg-card/70 p-4 shadow-sm md:p-6"
+            >
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold uppercase tracking-[0.18em] text-gold">
+                    {lang === "fr" ? "Lecture sur LE BRIEF" : lang === "ar" ? "القراءة على LE BRIEF" : "Read on LE BRIEF"}
+                  </p>
+                  <h2 className="mt-2 text-2xl font-semibold text-foreground">
+                    {magazineTitle}
+                  </h2>
+                </div>
+                {embeddedDocumentUrl ? (
+                  <a
+                    href={embeddedDocumentUrl}
+                    download
+                    className="inline-flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-secondary"
+                  >
+                    <Download className="h-4 w-4" />
+                    {downloadLabel}
+                  </a>
+                ) : null}
+              </div>
+              <div className="overflow-hidden rounded-2xl border border-border bg-background">
+                <iframe
+                  src={`${embeddedDocumentUrl}#toolbar=0&navpanes=0&view=FitH`}
+                  title={magazineTitle}
+                  className="h-[72vh] min-h-[680px] w-full md:h-[84vh]"
+                />
+              </div>
+            </motion.section>
+          ) : null}
         </div>
       </main>
       <Footer />

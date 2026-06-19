@@ -627,7 +627,10 @@ export async function createMagazine(data: { titleFr: string; titleEn?: string; 
 export async function getMagazines() {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(magazines).orderBy(desc(magazines.publishedAt));
+  return db
+    .select()
+    .from(magazines)
+    .orderBy(desc(magazines.createdAt), desc(magazines.publishedAt), desc(magazines.issueNumber), desc(magazines.id));
 }
 
 export async function getMagazineById(id: number) {
