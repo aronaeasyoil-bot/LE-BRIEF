@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildNewsSitemapXml, buildRobotsTxt, buildRssXml, buildSitemapXml, renderArticleHtml } from "./_core/seo";
+import { buildNewsSitemapXml, buildRobotsTxt, buildRssXml, buildSitemapXml, renderArticleHtml, renderMagazineHtml } from "./_core/seo";
 
 const template = `<!doctype html>
 <html lang="en">
@@ -41,6 +41,25 @@ describe("seo helpers", () => {
     expect(html).toContain("Meta description de test");
     expect(html).toContain("Source initiale");
     expect(html).toContain("https://www.reuters.com/business/energy/test-source/");
+  });
+
+  it("renders magazine-specific metadata and cover preview", () => {
+    const html = renderMagazineHtml(template, {
+      coverImageUrl: "/manus-storage/le-brief/covers/magazine-88.jpg",
+      id: 88,
+      issueNumber: 88,
+      pdfUrl: "/manus-storage/le-brief/pdfs/magazine-88.pdf",
+      publishedAt: "2026-06-19T00:00:00.000Z",
+      titleFr: "LE BRIEF - Edition speciale Senegal",
+      updatedAt: "2026-06-19T12:00:00.000Z",
+    });
+
+    expect(html).toContain("LE BRIEF - Edition speciale Senegal | LE BRIEF");
+    expect(html).toContain("https://www.lebrief.energy/magazine/88");
+    expect(html).toContain("https://www.lebrief.energy/manus-storage/le-brief/covers/magazine-88.jpg");
+    expect(html).toContain('"@type":"PublicationIssue"');
+    expect(html).toContain("Numero 88");
+    expect(html).toContain("Telecharger le PDF");
   });
 
   it("builds a sitemap containing canonical URLs", () => {

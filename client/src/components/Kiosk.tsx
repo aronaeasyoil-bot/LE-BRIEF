@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { Download, Share2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { Link } from "wouter";
 
 interface KioskProps {
   magazines: any[];
@@ -47,10 +48,11 @@ export default function Kiosk({ magazines }: KioskProps) {
     lang === "fr" ? "Masquer les archives" : lang === "ar" ? "اخفاء الأرشيف" : "Hide archive";
 
   const handleShare = async () => {
+    const magazineUrl = getSiteUrl(`/magazine/${latestMagazine.id}`);
     const result = await shareLink("native", {
       text: latestMagazine.titleFr || latestMagazine.titleEn || latestMagazine.titleAr,
       title: getMagazineTitle(latestMagazine, lang),
-      url: getSiteUrl(latestMagazine.pdfUrl),
+      url: magazineUrl,
     });
 
     if (result === "copied") {
@@ -83,11 +85,11 @@ export default function Kiosk({ magazines }: KioskProps) {
           className="grid grid-cols-1 items-center gap-8 md:grid-cols-3"
         >
           <div className="md:col-span-1">
-            <div className="group relative cursor-pointer">
+            <Link href={`/magazine/${latestMagazine.id}`} className="group relative block cursor-pointer">
               {latestMagazine.coverImageUrl ? (
                 <img
                   src={latestMagazine.coverImageUrl}
-                  alt="Magazine Cover"
+                  alt={getMagazineTitle(latestMagazine, lang)}
                   className="w-full rounded-lg shadow-xl transition-all group-hover:shadow-2xl group-hover:shadow-gold/20"
                 />
               ) : (
@@ -96,7 +98,7 @@ export default function Kiosk({ magazines }: KioskProps) {
                 </div>
               )}
               <div className="absolute inset-0 rounded-lg bg-black/0 transition-colors group-hover:bg-black/20" />
-            </div>
+            </Link>
           </div>
 
           <div className="space-y-6 md:col-span-2">
@@ -104,9 +106,11 @@ export default function Kiosk({ magazines }: KioskProps) {
               <p className="mb-2 text-sm font-bold text-gold">
                 {issueLabel} {latestMagazine.issueNumber}
               </p>
-              <h3 className="mb-3 font-serif text-2xl font-bold text-foreground md:text-3xl">
-                {getMagazineTitle(latestMagazine, lang)}
-              </h3>
+              <Link href={`/magazine/${latestMagazine.id}`}>
+                <h3 className="mb-3 font-serif text-2xl font-bold text-foreground transition-colors hover:text-gold md:text-3xl">
+                  {getMagazineTitle(latestMagazine, lang)}
+                </h3>
+              </Link>
               <p className="text-sm text-muted-foreground">
                 {new Date(latestMagazine.publishedAt).toLocaleDateString(
                   lang === "ar" ? "ar-SA" : lang === "en" ? "en-US" : "fr-FR",

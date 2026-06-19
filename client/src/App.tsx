@@ -8,6 +8,7 @@ import { ThemeProvider } from "./contexts/ThemeContext";
 import { LanguageProvider } from "./contexts/LanguageContext";
 import Home from "./pages/Home";
 import ArticlePage from "./pages/ArticlePage";
+import MagazinePage from "./pages/MagazinePage";
 import CategoryPage from "./pages/CategoryPage";
 import EventsPage from "./pages/EventsPage";
 import AboutPage from "./pages/AboutPage";
@@ -21,6 +22,7 @@ function Router() {
     <Switch>
       <Route path="/" component={Home} />
       <Route path="/article/:id" component={ArticlePage} />
+      <Route path="/magazine/:id" component={MagazinePage} />
       <Route path="/category/:slug" component={CategoryPage} />
       <Route path="/events" component={EventsPage} />
       <Route path="/about" component={AboutPage} />

@@ -1,13 +1,14 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { getAllCategories, getArticleById, getPublishedArticles, getPublishedEvents } from "../db";
+import { getAllCategories, getArticleById, getMagazineById, getMagazines, getPublishedArticles, getPublishedEvents } from "../db";
 import {
   buildNewsSitemapXml,
   buildRobotsTxt,
   buildRssXml,
   buildSitemapXml,
   renderArticleHtml,
+  renderMagazineHtml,
   SITE_URL,
   type SitemapUrl,
 } from "./seo";
@@ -107,10 +108,11 @@ function attachArticleCategories<
 }
 
 async function fetchSeoContent() {
-  const [articlesResult, categoriesResult, eventsResult] = await Promise.allSettled([
+  const [articlesResult, categoriesResult, eventsResult, magazinesResult] = await Promise.allSettled([
     getPublishedArticles(),
     getAllCategories(),
     getPublishedEvents(),
+    getMagazines(),
   ]);
 
   const categories = resolveSettled("Categories", categoriesResult, []);
@@ -119,8 +121,9 @@ async function fetchSeoContent() {
     categories,
   );
   const events = resolveSettled("Published events", eventsResult, []);
+  const magazines = resolveSettled("Magazines", magazinesResult, []);
 
-  return { articles, categories, events };
+  return { articles, categories, events, magazines };
 }
 
 function writeXmlResponse(res: any, xml: string, contentType = "application/xml") {
@@ -168,9 +171,33 @@ export function registerSeoRoutes(app: any) {
     }
   });
 
+  app.get(["/api/render-magazine", "/magazine/:id"], async (req: any, res: any) => {
+    const magazineId = Number(req.params?.id || req.query.id);
+
+    if (!Number.isInteger(magazineId) || magazineId <= 0) {
+      res.status(400).send("Invalid magazine id");
+      return;
+    }
+
+    try {
+      const [template, magazine] = await Promise.all([loadAppTemplate(), getMagazineById(magazineId)]);
+
+      if (!magazine) {
+        res.status(404).type("html").send(template);
+        return;
+      }
+
+      res.set("Cache-Control", NO_CACHE_HEADER);
+      res.type("html").send(renderMagazineHtml(template, magazine));
+    } catch (error) {
+      console.error("[SEO] Magazine render failed:", error);
+      res.status(500).send("Magazine render failed");
+    }
+  });
+
   app.get(["/api/sitemap", "/sitemap.xml"], async (_req: any, res: any) => {
     try {
-      const { articles, categories, events } = await fetchSeoContent();
+      const { articles, categories, events, magazines } = await fetchSeoContent();
       const latestEventUpdate = getLatestEventUpdate(events);
 
       const urls = [
@@ -188,6 +215,12 @@ export function registerSeoRoutes(app: any) {
           changefreq: "weekly" as const,
           lastmod: article.updatedAt || article.publishedAt,
           priority: 0.9,
+        })),
+        ...magazines.map((magazine) => ({
+          loc: `${SITE_URL}/magazine/${magazine.id}`,
+          changefreq: "weekly" as const,
+          lastmod: magazine.publishedAt || magazine.createdAt,
+          priority: 0.8,
         })),
       ];
 

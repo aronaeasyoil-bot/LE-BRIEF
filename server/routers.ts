@@ -532,6 +532,13 @@ export const appRouter = router({
       if (!db) return [];
       return (await db.select().from(magazines).orderBy(desc(magazines.publishedAt)).limit(10)).map(normalizeMagazineRecord);
     }),
+    byId: publicProcedure
+      .input(z.object({ id: z.number() }))
+      .query(async ({ input }) => {
+        const { getMagazineById } = await import("./db");
+        const magazine = await getMagazineById(input.id);
+        return magazine ? normalizeMagazineRecord(magazine) : null;
+      }),
     all: adminProcedure.query(async () => {
       const db = await (await import("./db")).getDb();
       if (!db) return [];
