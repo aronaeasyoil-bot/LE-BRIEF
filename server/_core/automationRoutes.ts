@@ -4,6 +4,7 @@ import {
   triggerDailyNewsletterDraftAutomation,
   triggerDailyNewsletterAutomation,
   triggerWeeklyNewsletterDraftAutomation,
+  triggerWeeklyNewsletterSendAutomation,
 } from "./newsletter";
 import { triggerReutersEnergyAutomation } from "./reutersEnergy";
 
@@ -68,6 +69,27 @@ export function registerAutomationRoutes(app: any) {
       });
     } catch (error) {
       console.error("[Newsletter automation] Cron execution failed:", error);
+      res.status(500).json({
+        error: error instanceof Error ? error.message : "Unknown cron error",
+        ok: false,
+      });
+    }
+  });
+
+  app.get("/api/cron/newsletter-weekly-send", async (req: any, res: any) => {
+    const authorization = req.headers?.authorization;
+    const hasValidCronSecret =
+      Boolean(ENV.cronSecret) && authorization === `Bearer ${ENV.cronSecret}`;
+    const force = hasValidCronSecret && isTruthyQueryFlag(req.query?.force);
+
+    try {
+      const result = await triggerWeeklyNewsletterSendAutomation({ force });
+      res.status(200).json({
+        ok: true,
+        result,
+      });
+    } catch (error) {
+      console.error("[Weekly magazine newsletter automation] Cron execution failed:", error);
       res.status(500).json({
         error: error instanceof Error ? error.message : "Unknown cron error",
         ok: false,

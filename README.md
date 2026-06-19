@@ -122,10 +122,11 @@ pnpm db:push
   - generer un brouillon hebdomadaire
   - previsualiser l'email
   - envoyer la campagne uniquement apres clic manuel sur `Envoyer`
-- Le brouillon hebdomadaire automatique est cree via la route `/api/cron/newsletter-weekly`.
-- La frequence hebdomadaire est fournie par le workflow GitHub `.github/workflows/newsletter-weekly-draft.yml`.
-- La newsletter quotidienne automatique est envoyee via la route `/api/cron/newsletter-daily`.
-- La frequence quotidienne est fournie par le workflow GitHub `.github/workflows/newsletter-daily-send.yml`.
+- Le brouillon hebdomadaire peut etre cree via la route `/api/cron/newsletter-weekly`.
+- Le magazine hebdomadaire est envoye automatiquement a tous les abonnes via la route `/api/cron/newsletter-weekly-send`.
+- La frequence hebdomadaire est fournie par le workflow GitHub `.github/workflows/newsletter-weekly-draft.yml` programme chaque samedi a `08:00` heure du Senegal (`UTC+0`).
+- Le brouillon quotidien automatique est cree via la route `/api/cron/newsletter-daily-draft`.
+- La frequence quotidienne est fournie par le workflow GitHub `.github/workflows/newsletter-daily-send.yml` programme chaque nuit a `02:00` heure de Dubai (`UTC+4`).
 - Variables d'environnement requises pour l'envoi reel:
   - `RESEND_API_KEY`
   - `NEWSLETTER_FROM_EMAIL`

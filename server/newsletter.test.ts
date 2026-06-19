@@ -4,6 +4,7 @@ import {
   chunkNewsletterRecipients,
   extractEmailsFromText,
   getDailyCampaignKey,
+  getWeeklyMagazineCampaignKey,
   NEWSLETTER_RESEND_BCC_CHUNK_SIZE,
   normalizeNewsletterEmail,
   selectDailyNewsletterArticles,
@@ -74,6 +75,10 @@ describe("newsletter helpers", () => {
     expect(getDailyCampaignKey(referenceDate, "fr")).toBe("daily-fr-2026-06-18");
     expect(getDailyCampaignKey(referenceDate, "en")).toBe("daily-en-2026-06-18");
     expect(getDailyCampaignKey(referenceDate, "ar")).toBe("daily-ar-2026-06-18");
+  });
+
+  it("builds a stable weekly magazine campaign key", () => {
+    expect(getWeeklyMagazineCampaignKey(570001)).toBe("mag-570001");
   });
 
   it("prioritizes Senegal first, then other African stories with images for daily newsletters", () => {

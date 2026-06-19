@@ -7,6 +7,7 @@ import {
   deleteSubscriberByEmail,
   getAllSubscribers,
   getExistingSubscriberEmails,
+  getMagazines,
   getNewsletterCampaignById,
   getNewsletterCampaignByWeekKey,
   getPublishedArticles,
@@ -620,6 +621,140 @@ function buildWeeklyNewsletterText(articles: any[], weekStart: Date) {
   return lines.join("\n");
 }
 
+function toAbsoluteSiteUrl(value?: string | null) {
+  const normalizedValue = normalizeText(value);
+  if (!normalizedValue) {
+    return "";
+  }
+
+  return normalizedValue.startsWith("http")
+    ? normalizedValue
+    : new URL(normalizedValue, SITE_URL).toString();
+}
+
+function getMagazineTitle(magazine: any) {
+  return (
+    normalizeText(magazine.titleFr) ||
+    normalizeText(magazine.titleEn) ||
+    normalizeText(magazine.titleAr) ||
+    "Magazine LE BRIEF"
+  );
+}
+
+function getMagazineCoverUrl(magazine: any) {
+  return toAbsoluteSiteUrl(magazine.coverImageUrl) || `${SITE_URL}/media/lebrief-share-preview.jpeg`;
+}
+
+function getMagazinePageUrl(magazineId: number) {
+  return `${SITE_URL}/magazine/${magazineId}`;
+}
+
+function getMagazineDownloadUrl(magazine: any) {
+  return toAbsoluteSiteUrl(magazine.pdfUrl) || getMagazinePageUrl(magazine.id);
+}
+
+export function getWeeklyMagazineCampaignKey(magazineId: number) {
+  return `mag-${magazineId}`;
+}
+
+function isWeeklyMagazineCampaignKey(weekKey?: string | null) {
+  return normalizeText(weekKey).startsWith("mag-");
+}
+
+function buildWeeklyMagazineNewsletterHtml(magazine: any, referenceDate: Date) {
+  const coverUrl = getMagazineCoverUrl(magazine);
+  const magazineTitle = getMagazineTitle(magazine);
+  const magazinePageUrl = getMagazinePageUrl(magazine.id);
+  const magazineDownloadUrl = getMagazineDownloadUrl(magazine);
+  const issueLabel =
+    typeof magazine.issueNumber === "number" ? `Numero ${magazine.issueNumber}` : "Magazine hebdomadaire";
+  const formattedDate = formatFrenchDate(referenceDate);
+
+  return `
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LE BRIEF | Magazine hebdomadaire</title>
+  </head>
+  <body style="margin:0;background:#f8fafc;font-family:Inter,Arial,sans-serif;color:#0f172a;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;background:#f8fafc;">
+      <tr>
+        <td align="center" style="padding:32px 16px;">
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;max-width:720px;background:#ffffff;border-radius:28px;overflow:hidden;">
+            <tr>
+              <td style="padding:36px 36px 28px;background:#05070c;color:#ffffff;">
+                <div style="font-size:34px;font-weight:800;letter-spacing:-0.03em;">
+                  <span style="color:#ffffff;">LE </span><span style="color:#d62828;">BRIEF</span>
+                </div>
+                <div style="padding-top:18px;color:#f8fafc;font-size:28px;font-weight:700;line-height:1.25;">
+                  Magazine hebdomadaire
+                </div>
+                <div style="padding-top:10px;color:#cbd5e1;font-size:16px;line-height:1.7;">
+                  Retrouvez le numero de la semaine publie sur LE BRIEF.
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:36px;">
+                <div style="padding-bottom:16px;color:#d62828;font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;">${escapeHtml(issueLabel)}</div>
+                <div style="padding-bottom:10px;color:#0f172a;font-size:30px;font-weight:700;line-height:1.2;">
+                  ${escapeHtml(magazineTitle)}
+                </div>
+                <div style="padding-bottom:22px;color:#475569;font-size:15px;line-height:1.7;">
+                  Edition du ${escapeHtml(formattedDate)}. Consultez la couverture, ouvrez la page du magazine sur le site et accedez au document complet.
+                </div>
+                <div style="padding-bottom:24px;">
+                  <img src="${escapeHtml(coverUrl)}" alt="${escapeHtml(magazineTitle)}" style="width:100%;height:auto;border-radius:20px;display:block;" />
+                </div>
+                <div style="padding-bottom:12px;">
+                  <a href="${escapeHtml(magazinePageUrl)}" style="display:inline-block;background:#d62828;color:#ffffff;text-decoration:none;font-weight:700;padding:14px 22px;border-radius:999px;">Voir le magazine sur LE BRIEF</a>
+                </div>
+                <div style="padding-bottom:26px;">
+                  <a href="${escapeHtml(magazineDownloadUrl)}" style="display:inline-block;color:#0f172a;text-decoration:none;font-weight:700;padding:12px 4px;">Telecharger le magazine</a>
+                </div>
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;border-top:1px solid #e2e8f0;margin-top:8px;">
+                  <tr>
+                    <td style="padding-top:24px;color:#64748b;font-size:13px;line-height:1.8;">
+                      Vous recevez cette newsletter car votre adresse email est inscrite sur LE BRIEF.
+                      <br />
+                      <a href="${escapeHtml(SITE_URL)}" style="color:#d62828;text-decoration:none;">www.lebrief.energy</a>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>
+  `.trim();
+}
+
+function buildWeeklyMagazineNewsletterText(magazine: any, referenceDate: Date) {
+  const magazineTitle = getMagazineTitle(magazine);
+  const issueLabel =
+    typeof magazine.issueNumber === "number" ? `Numero ${magazine.issueNumber}` : "Magazine hebdomadaire";
+  const pageUrl = getMagazinePageUrl(magazine.id);
+  const downloadUrl = getMagazineDownloadUrl(magazine);
+
+  return [
+    "LE BRIEF",
+    "Magazine hebdomadaire",
+    "",
+    `${issueLabel} - ${magazineTitle}`,
+    `Edition du ${formatFrenchDate(referenceDate)}`,
+    "",
+    `Voir sur le site: ${pageUrl}`,
+    `Telecharger: ${downloadUrl}`,
+    "",
+    `Se desinscrire: ${buildNewsletterUnsubscribeUrl(DEFAULT_RECIPIENT_ANCHOR)}`,
+  ].join("\n");
+}
+
 export function getDailyCampaignKey(referenceDate = new Date(), language: NewsletterLanguage = "fr") {
   const anchor = new Date(
     Date.UTC(
@@ -858,41 +993,35 @@ async function buildDailyNewsletterDraftPayload(
   };
 }
 
-async function buildWeeklyNewsletterDraftPayload(referenceDate = new Date()) {
-  const weeklyWindow = getWeeklyWindow(referenceDate);
-  const allArticles = await getPublishedArticles(18, 0);
-  const weeklyArticles = allArticles.filter((article) => {
-    if (!article.publishedAt) {
-      return false;
-    }
+async function buildWeeklyMagazineNewsletterDraftPayload(referenceDate = new Date()) {
+  const magazines = await getMagazines();
+  const latestMagazine = magazines[0];
 
-    const publishedAt = new Date(article.publishedAt);
-    return publishedAt >= weeklyWindow.start && publishedAt < weeklyWindow.endExclusive;
-  });
-  const selectedArticles = (weeklyArticles.length >= 3 ? weeklyArticles : allArticles).slice(0, 6);
-
-  if (selectedArticles.length === 0) {
-    throw new Error("No published articles available to generate the weekly newsletter draft.");
+  if (!latestMagazine) {
+    throw new Error("No magazine available to generate the weekly newsletter draft.");
   }
 
-  const subject = `LE BRIEF | Les temps forts de la semaine du ${formatFrenchDate(weeklyWindow.start)}`;
-  const title = `Newsletter hebdomadaire - ${formatFrenchDate(weeklyWindow.start)}`;
+  const issueDate = latestMagazine.publishedAt ? new Date(latestMagazine.publishedAt) : referenceDate;
+  const magazineTitle = getMagazineTitle(latestMagazine);
+  const issueLabel =
+    typeof latestMagazine.issueNumber === "number" ? `Numero ${latestMagazine.issueNumber}` : "Magazine hebdomadaire";
+  const subject = `LE BRIEF | Magazine hebdomadaire - ${magazineTitle}`;
+  const title = `Magazine hebdomadaire - ${magazineTitle}`;
   const previewText = truncateText(
-    getArticleExcerpt(selectedArticles[0]) ||
-      "Retrouvez les analyses et actualites marquantes de la semaine sur LE BRIEF.",
+    `${issueLabel}. Retrouvez la couverture et le magazine de la semaine sur LE BRIEF.`,
     320,
   );
 
   return {
-    articleCount: selectedArticles.length,
-    articleIds: selectedArticles.map((article) => article.id).join(","),
-    htmlContent: buildWeeklyNewsletterHtml(selectedArticles, weeklyWindow.start),
+    articleCount: 1,
+    articleIds: `magazine:${latestMagazine.id}`,
+    htmlContent: buildWeeklyMagazineNewsletterHtml(latestMagazine, issueDate),
     previewText,
     status: "draft" as const,
     subject: truncateText(subject, 255),
-    textContent: buildWeeklyNewsletterText(selectedArticles, weeklyWindow.start),
+    textContent: buildWeeklyMagazineNewsletterText(latestMagazine, issueDate),
     title: truncateText(title, 255),
-    weekKey: weeklyWindow.weekKey,
+    weekKey: getWeeklyMagazineCampaignKey(latestMagazine.id),
   };
 }
 
@@ -972,7 +1101,7 @@ export async function generateDailyNewsletterDraft(options: {
 }
 
 export async function generateWeeklyNewsletterDraft(options: { force?: boolean } = {}) {
-  const payload = await buildWeeklyNewsletterDraftPayload();
+  const payload = await buildWeeklyMagazineNewsletterDraftPayload();
   const existingCampaign = await getNewsletterCampaignByWeekKey(payload.weekKey);
 
   if (existingCampaign?.status === "sent") {
@@ -1125,11 +1254,17 @@ export async function sendNewsletterCampaignById(campaignId: number) {
     throw new Error("RESEND_API_KEY and NEWSLETTER_FROM_EMAIL must be configured before sending newsletters.");
   }
 
-  const subscribers = await getAllSubscribers(campaign.language);
+  const subscribers = isWeeklyMagazineCampaignKey(campaign.weekKey)
+    ? await getAllSubscribers()
+    : await getAllSubscribers(campaign.language);
   const recipients = subscribers.map((subscriber) => normalizeNewsletterEmail(subscriber.email)).filter(Boolean);
 
   if (recipients.length === 0) {
-    throw new Error("No newsletter subscribers are available for this language.");
+    throw new Error(
+      isWeeklyMagazineCampaignKey(campaign.weekKey)
+        ? "No newsletter subscribers are available."
+        : "No newsletter subscribers are available for this language.",
+    );
   }
 
   await updateNewsletterCampaign(campaign.id, {
@@ -1274,4 +1409,47 @@ export async function triggerDailyNewsletterDraftAutomation(options: {
 
 export async function triggerWeeklyNewsletterDraftAutomation(options: { force?: boolean } = {}) {
   return generateWeeklyNewsletterDraft(options);
+}
+
+export async function triggerWeeklyNewsletterSendAutomation(options: { force?: boolean } = {}) {
+  if (!isNewsletterSendConfigured()) {
+    return {
+      skipped: true,
+      reason: "send-not-configured",
+    };
+  }
+
+  const subscribers = await getAllSubscribers();
+  if (subscribers.length === 0) {
+    return {
+      skipped: true,
+      reason: "no-subscribers",
+    };
+  }
+
+  const draftResult = await generateWeeklyNewsletterDraft({ force: options.force });
+
+  if (!draftResult.campaign) {
+    return {
+      skipped: true,
+      reason: "campaign-not-created",
+    };
+  }
+
+  if (draftResult.campaign.status === "sent") {
+    return {
+      campaignId: draftResult.campaign.id,
+      skipped: true,
+      reason: "already-sent",
+    };
+  }
+
+  const sendResult = await sendNewsletterCampaignById(draftResult.campaign.id);
+  return {
+    campaignId: draftResult.campaign.id,
+    created: draftResult.created,
+    skipped: false,
+    updated: draftResult.updated,
+    ...sendResult,
+  };
 }
