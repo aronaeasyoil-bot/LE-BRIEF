@@ -16,6 +16,12 @@ import { Linkedin, Instagram, Send } from "lucide-react";
 
 export default function Footer() {
   const { t, lang } = useLanguage();
+  const journalLabel =
+    lang === "fr" ? "Journal quotidien" : lang === "ar" ? "الصحيفة اليومية" : "Daily journal";
+  const magazineLabel =
+    lang === "fr" ? "Magazine hebdomadaire" : lang === "ar" ? "المجلة الأسبوعية" : "Weekly magazine";
+  const internationalLabel =
+    lang === "fr" ? "International" : lang === "ar" ? "الدولي" : "International";
   const [email, setEmail] = useState("");
   const subscribeMutation = trpc.newsletter.subscribe.useMutation({
     onError: () => {
@@ -80,10 +86,12 @@ export default function Footer() {
               {t.footer.quickLinks}
             </h4>
             <ul className="space-y-2.5">
+              <li><a href="/#journal-quotidien" className="text-sm text-muted-foreground transition-colors hover:text-gold">{journalLabel}</a></li>
+              <li><a href="/#magazine-hebdomadaire" className="text-sm text-muted-foreground transition-colors hover:text-gold">{magazineLabel}</a></li>
+              <li><Link href="/coverage/afrique" className="text-sm text-muted-foreground transition-colors hover:text-gold">{t.nav.africa}</Link></li>
+              <li><Link href="/coverage/international" className="text-sm text-muted-foreground transition-colors hover:text-gold">{internationalLabel}</Link></li>
               <li><Link href="/about" className="text-sm text-muted-foreground transition-colors hover:text-gold">{t.nav.about}</Link></li>
               <li><Link href="/events" className="text-sm text-muted-foreground transition-colors hover:text-gold">{t.nav.events}</Link></li>
-              <li><Link href="/category/energie" className="text-sm text-muted-foreground transition-colors hover:text-gold">{t.nav.energy}</Link></li>
-              <li><Link href="/category/portraits" className="text-sm text-muted-foreground transition-colors hover:text-gold">{t.nav.portraits}</Link></li>
               <li><Link href="/legal" className="text-sm text-muted-foreground transition-colors hover:text-gold">{t.footer.legal}</Link></li>
               <li><Link href="/privacy" className="text-sm text-muted-foreground transition-colors hover:text-gold">{t.footer.privacy}</Link></li>
             </ul>

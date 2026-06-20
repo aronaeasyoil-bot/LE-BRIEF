@@ -5,7 +5,7 @@ import Footer from "@/components/Footer";
 import WhatsAppButton from "@/components/WhatsAppButton";
 import { motion } from "framer-motion";
 import { Link } from "wouter";
-import { ArrowRight, Calendar, MapPin, Clock, TrendingUp } from "lucide-react";
+import { ArrowRight, Calendar, MapPin, TrendingUp } from "lucide-react";
 import CountUpStat from "@/components/CountUpStat";
 import Kiosk from "@/components/Kiosk";
 import AdsCarousel from "@/components/AdsCarousel";
@@ -13,6 +13,7 @@ import PriceWidget from "@/components/PriceWidget";
 import TopSponsorBanner from "@/components/TopSponsorBanner";
 import ArticleEngagementFooter from "@/components/ArticleEngagementFooter";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { AFRICAN_COVERAGE_ITEMS, countArticlesByCoverage, getCoverageLabel } from "@/lib/editorial";
 import { useMemo, useState } from "react";
 
 function getLocalizedField(item: any, field: string, lang: string): string {
@@ -74,7 +75,26 @@ export default function Home() {
   const showLessArticlesLabel =
     lang === "fr" ? "Voir moins" : lang === "ar" ? "عرض اقل" : "Show less";
 
+  const journalLabel =
+    lang === "fr" ? "Journal quotidien" : lang === "ar" ? "الصحيفة اليومية" : "Daily journal";
+  const weeklyMagazineLabel =
+    lang === "fr" ? "Magazine hebdomadaire" : lang === "ar" ? "المجلة الأسبوعية" : "Weekly magazine";
+  const geographyLabel =
+    lang === "fr" ? "Couverture geographique" : lang === "ar" ? "التغطية الجغرافية" : "Geographic coverage";
+  const editorialRhythmLabel =
+    lang === "fr" ? "Deux rythmes editoriaux" : lang === "ar" ? "إيقاعان تحريريان" : "Two editorial rhythms";
   const dailyEditionContent = dailyEditionLiveContent[lang as keyof typeof dailyEditionLiveContent] || dailyEditionLiveContent.fr;
+  const priorityCountries = useMemo(
+    () =>
+      AFRICAN_COVERAGE_ITEMS.map((item) => ({
+        count: countArticlesByCoverage(articles, item.slug),
+        item,
+      }))
+        .filter((entry) => entry.count > 0)
+        .sort((left, right) => right.count - left.count)
+        .slice(0, 8),
+    [articles],
+  );
 
   return (
     <div className="min-h-screen bg-background" dir={rtl ? "rtl" : "ltr"}>
@@ -101,7 +121,7 @@ export default function Home() {
       </div>
 
       {/* Kiosk - Magazine Section - NOW AT TOP */}
-      <section className="relative pt-[168px] pb-12 overflow-hidden">
+      <section id="magazine-hebdomadaire" className="relative pt-[168px] pb-12 overflow-hidden">
         {magazines.length > 0 ? (
           <Kiosk magazines={magazines} />
         ) : isLoadingMagazines ? (
@@ -129,6 +149,113 @@ export default function Home() {
 
       {/* Price Widget */}
       <PriceWidget />
+
+      <section className="border-b border-border py-10">
+        <div className="container grid gap-6 xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
+          <motion.div
+            initial={{ opacity: 0, y: 18 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="rounded-2xl border border-border bg-card/40 p-6"
+          >
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-gold">{editorialRhythmLabel}</p>
+            <div className="mt-5 grid gap-4 md:grid-cols-2">
+              <a
+                href="/#journal-quotidien"
+                className="rounded-2xl border border-border bg-background/80 p-5 transition-colors hover:border-gold hover:bg-card"
+              >
+                <div className="inline-flex rounded-full bg-primary/12 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-primary">
+                  {journalLabel}
+                </div>
+                <h3 className="mt-4 text-xl font-bold text-foreground">
+                  {lang === "fr" ? "Flux quotidien des articles" : lang === "ar" ? "تدفق يومي للمقالات" : "Daily article stream"}
+                </h3>
+                <p className="mt-3 text-sm leading-6 text-muted-foreground">
+                  {lang === "fr"
+                    ? "Le site actualise les informations tous les jours avec les analyses, les alertes marche et les sujets prioritaires."
+                    : lang === "ar"
+                      ? "يتم تحديث الموقع يوميا بالتحليلات والتنبيهات السوقية والملفات ذات الأولوية."
+                      : "The site updates every day with analysis, market alerts and priority stories."}
+                </p>
+              </a>
+
+              <a
+                href="/#magazine-hebdomadaire"
+                className="rounded-2xl border border-border bg-background/80 p-5 transition-colors hover:border-gold hover:bg-card"
+              >
+                <div className="inline-flex rounded-full bg-primary/12 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-primary">
+                  {weeklyMagazineLabel}
+                </div>
+                <h3 className="mt-4 text-xl font-bold text-foreground">
+                  {lang === "fr" ? "Edition premium du samedi" : lang === "ar" ? "العدد المميز ليوم السبت" : "Saturday premium edition"}
+                </h3>
+                <p className="mt-3 text-sm leading-6 text-muted-foreground">
+                  {lang === "fr"
+                    ? "Le magazine regroupe chaque samedi les dossiers, entretiens et couvertures longues dans le kiosque."
+                    : lang === "ar"
+                      ? "تجمع المجلة كل سبت الملفات والتحقيقات والمقابلات والتغطيات الطويلة داخل الكشك."
+                      : "The magazine gathers each Saturday's deep dives, interviews and long-form coverage in the kiosk."}
+                </p>
+              </a>
+            </div>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 18 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="rounded-2xl border border-border bg-card/40 p-6"
+          >
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-gold">{geographyLabel}</p>
+            <div className="mt-4 space-y-5">
+              <div>
+                <div className="flex items-center justify-between gap-3">
+                  <h3 className="text-xl font-bold text-foreground">{t.nav.africa}</h3>
+                  <Link href="/coverage/afrique" className="text-sm font-medium text-gold transition-colors hover:text-accent">
+                    {lang === "fr" ? "Voir l'Afrique" : lang === "ar" ? "عرض أفريقيا" : "View Africa"}
+                  </Link>
+                </div>
+                <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                  {lang === "fr"
+                    ? "Senegal en priorite, puis les autres pays africains que LE BRIEF suit le plus regulierement."
+                    : lang === "ar"
+                      ? "السنغال أولا ثم بقية الدول الأفريقية التي يتابعها LE BRIEF باستمرار."
+                      : "Senegal first, then the other African countries most consistently covered by LE BRIEF."}
+                </p>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {priorityCountries.map(({ item, count }) => (
+                    <Link
+                      key={item.slug}
+                      href={`/coverage/${item.slug}`}
+                      className="rounded-full bg-secondary px-3 py-2 text-sm text-foreground transition-colors hover:bg-secondary/70"
+                    >
+                      {getCoverageLabel(item, lang)} <span className="text-muted-foreground">({count})</span>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-border bg-background/70 p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <h3 className="text-lg font-bold text-foreground">
+                    {lang === "fr" ? "International" : lang === "ar" ? "الدولي" : "International"}
+                  </h3>
+                  <Link href="/coverage/international" className="text-sm font-medium text-gold transition-colors hover:text-accent">
+                    {lang === "fr" ? "Voir l'international" : lang === "ar" ? "عرض الدولي" : "View international"}
+                  </Link>
+                </div>
+                <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                  {lang === "fr"
+                    ? "Les marches mondiaux, le Moyen-Orient, l'Europe, l'Asie et les Ameriques restent accessibles a part."
+                    : lang === "ar"
+                      ? "الأسواق العالمية والشرق الأوسط وأوروبا وآسيا والأميركيتان متاحة في قسم منفصل."
+                      : "Global markets, the Middle East, Europe, Asia and the Americas remain available in a separate section."}
+                </p>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      </section>
 
       {/* Editorial Header Section - Professional Introduction */}
       <section className="py-12 border-b border-border bg-gradient-to-r from-card/50 via-background to-card/50">
@@ -260,7 +387,7 @@ export default function Home() {
       </section>
 
       {/* Analysis & Opinion Section - NEW PROFESSIONAL SECTION */}
-      <section className="py-12 border-b border-border bg-card/20">
+      <section id="journal-quotidien" className="py-12 border-b border-border bg-card/20">
         <div className="container">
           <motion.div
             initial={{ opacity: 0, x: -20 }}
@@ -268,9 +395,19 @@ export default function Home() {
             viewport={{ once: true }}
             className="mb-10"
           >
+            <div className="inline-flex rounded-full border border-primary/30 bg-primary/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.22em] text-primary">
+              {journalLabel}
+            </div>
             <h2 className="text-3xl md:text-4xl font-bold font-serif text-foreground">
               {lang === "fr" ? "Analyses & Perspectives" : lang === "ar" ? "التحليلات والآفاق" : "Analysis & Perspectives"}
             </h2>
+            <p className="mt-3 max-w-3xl text-sm leading-6 text-muted-foreground md:text-base">
+              {lang === "fr"
+                ? "Le journal quotidien du site est mis a jour tous les jours avec les analyses, le suivi marche et les nouveaux articles."
+                : lang === "ar"
+                  ? "يتم تحديث الصحيفة اليومية للموقع كل يوم بالتحليلات ومتابعة السوق والمقالات الجديدة."
+                  : "The site's daily journal is updated every day with analysis, market tracking and fresh reporting."}
+            </p>
             <div className="w-12 h-1 bg-accent mt-3 rounded-full" />
           </motion.div>
 

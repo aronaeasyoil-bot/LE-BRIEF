@@ -10,6 +10,7 @@ import Home from "./pages/Home";
 import ArticlePage from "./pages/ArticlePage";
 import MagazinePage from "./pages/MagazinePage";
 import CategoryPage from "./pages/CategoryPage";
+import CoveragePage from "./pages/CoveragePage";
 import EventsPage from "./pages/EventsPage";
 import AboutPage from "./pages/AboutPage";
 import AdminPage from "./pages/AdminPage";
@@ -24,6 +25,7 @@ function Router() {
       <Route path="/article/:id" component={ArticlePage} />
       <Route path="/magazine/:id" component={MagazinePage} />
       <Route path="/category/:slug" component={CategoryPage} />
+      <Route path="/coverage/:slug" component={CoveragePage} />
       <Route path="/events" component={EventsPage} />
       <Route path="/about" component={AboutPage} />
       <Route path="/legal" component={LegalPage} />

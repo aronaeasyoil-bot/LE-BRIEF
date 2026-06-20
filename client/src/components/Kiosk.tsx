@@ -76,6 +76,14 @@ export default function Kiosk({ magazines }: KioskProps) {
     lang === "fr" ? "Voir toutes les archives" : lang === "ar" ? "عرض كل الأرشيف" : "View all archive";
   const showLessArchiveLabel =
     lang === "fr" ? "Masquer les archives" : lang === "ar" ? "اخفاء الأرشيف" : "Hide archive";
+  const weeklyLabel =
+    lang === "fr" ? "Magazine hebdomadaire" : lang === "ar" ? "المجلة الأسبوعية" : "Weekly magazine";
+  const weeklySummary =
+    lang === "fr"
+      ? "Chaque samedi, LE BRIEF publie son edition magazine dans le kiosque."
+      : lang === "ar"
+        ? "كل سبت ينشر LE BRIEF عدده الأسبوعي داخل الكشك."
+        : "Every Saturday, LE BRIEF publishes its weekly magazine edition in the kiosk.";
 
   const handleShare = async () => {
     const magazineUrl = getMagazineSiteUrl(latestMagazine.id, { reader: Boolean(latestMagazine?.pdfUrl) });
@@ -104,7 +112,11 @@ export default function Kiosk({ magazines }: KioskProps) {
           viewport={{ once: true }}
           className="mb-6"
         >
-          <h2 className="font-serif text-2xl font-bold md:text-3xl">Kiosque</h2>
+          <div className="inline-flex rounded-full border border-primary/30 bg-primary/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.22em] text-primary">
+            {weeklyLabel}
+          </div>
+          <h2 className="mt-3 font-serif text-2xl font-bold md:text-3xl">Kiosque</h2>
+          <p className="mt-2 max-w-2xl text-sm text-muted-foreground md:text-base">{weeklySummary}</p>
         </motion.div>
 
         <motion.div
