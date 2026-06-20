@@ -68,6 +68,7 @@ const popupText = {
 function shouldHidePopupOnPath(pathname: string) {
   return (
     pathname.startsWith("/admin") ||
+    pathname.startsWith("/magazine/") ||
     pathname === "/legal" ||
     pathname === "/privacy" ||
     pathname === "/404"

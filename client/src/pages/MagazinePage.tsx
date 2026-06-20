@@ -9,11 +9,13 @@ import { shareLink, type SharePlatform } from "@/lib/share";
 import { trpc } from "@/lib/trpc";
 import { motion } from "framer-motion";
 import { ArrowLeft, BookOpen, Copy, Download, MessageCircle, Share2 } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Link, useParams } from "wouter";
 
 const MAGAZINE_READER_ID = "reader";
+const MOBILE_READER_FRAME_HEIGHT = 980;
+const MOBILE_READER_FRAME_WIDTH = 560;
 
 function getMagazineTitle(magazine: any, lang: string) {
   return lang === "ar"
@@ -53,6 +55,56 @@ export default function MagazinePage() {
     : SITE_DESCRIPTION;
   const embeddedDocumentUrl = magazine?.pdfUrl ? getMagazineDocumentProxyUrl(magazineId) : "";
   const canEmbedDocument = Boolean(magazine?.pdfUrl);
+  const mobileReaderContainerRef = useRef<HTMLDivElement | null>(null);
+  const [useMobileReader, setUseMobileReader] = useState(false);
+  const [mobileReaderScale, setMobileReaderScale] = useState(1);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const mediaQuery = window.matchMedia("(max-width: 767px)");
+    const syncViewport = () => setUseMobileReader(mediaQuery.matches);
+
+    syncViewport();
+
+    if (typeof mediaQuery.addEventListener === "function") {
+      mediaQuery.addEventListener("change", syncViewport);
+      return () => mediaQuery.removeEventListener("change", syncViewport);
+    }
+
+    mediaQuery.addListener(syncViewport);
+    return () => mediaQuery.removeListener(syncViewport);
+  }, []);
+
+  useEffect(() => {
+    if (!useMobileReader) {
+      setMobileReaderScale(1);
+      return;
+    }
+
+    const container = mobileReaderContainerRef.current;
+    if (!container) {
+      return;
+    }
+
+    const syncScale = () => {
+      const nextScale = Math.min(container.clientWidth / MOBILE_READER_FRAME_WIDTH, 1);
+      setMobileReaderScale(nextScale > 0 ? nextScale : 1);
+    };
+
+    syncScale();
+
+    if (typeof ResizeObserver === "undefined") {
+      window.addEventListener("resize", syncScale);
+      return () => window.removeEventListener("resize", syncScale);
+    }
+
+    const observer = new ResizeObserver(syncScale);
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, [useMobileReader]);
 
   useEffect(() => {
     if (!canEmbedDocument || typeof window === "undefined" || window.location.hash !== `#${MAGAZINE_READER_ID}`) {
@@ -129,6 +181,8 @@ export default function MagazinePage() {
   const readLabel = lang === "fr" ? "Lire le magazine" : lang === "ar" ? "قراءة المجلة" : "Read magazine";
   const downloadLabel =
     lang === "fr" ? "Telecharger le PDF" : lang === "ar" ? "تحميل PDF" : "Download PDF";
+
+  const mobileReaderHeight = Math.round(MOBILE_READER_FRAME_HEIGHT * mobileReaderScale);
 
   return (
     <div className="min-h-screen bg-background" dir={rtl ? "rtl" : "ltr"}>
@@ -286,13 +340,37 @@ export default function MagazinePage() {
                   </a>
                 ) : null}
               </div>
-              <div className="overflow-hidden rounded-2xl border border-border bg-background">
-                <iframe
-                  src={`${embeddedDocumentUrl}#toolbar=0&navpanes=0&view=FitH`}
-                  title={magazineTitle}
-                  className="h-[72vh] min-h-[680px] w-full md:h-[84vh]"
-                />
-              </div>
+              {useMobileReader ? (
+                <div
+                  ref={mobileReaderContainerRef}
+                  className="overflow-hidden rounded-2xl border border-border bg-background"
+                >
+                  <div style={{ height: `${mobileReaderHeight}px` }}>
+                    <div
+                      style={{
+                        height: `${MOBILE_READER_FRAME_HEIGHT}px`,
+                        transform: `scale(${mobileReaderScale})`,
+                        transformOrigin: "top left",
+                        width: `${MOBILE_READER_FRAME_WIDTH}px`,
+                      }}
+                    >
+                      <iframe
+                        src={`${embeddedDocumentUrl}#toolbar=0&navpanes=0&view=FitH`}
+                        title={magazineTitle}
+                        className="h-full w-full border-0"
+                      />
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="overflow-hidden rounded-2xl border border-border bg-background">
+                  <iframe
+                    src={`${embeddedDocumentUrl}#toolbar=0&navpanes=0&view=FitH`}
+                    title={magazineTitle}
+                    className="h-[72vh] min-h-[680px] w-full md:h-[84vh]"
+                  />
+                </div>
+              )}
             </motion.section>
           ) : null}
         </div>
