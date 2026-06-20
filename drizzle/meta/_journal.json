@@ -50,6 +50,13 @@
       "when": 1781706095781,
       "tag": "0006_swift_brood",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "5",
+      "when": 1781922145220,
+      "tag": "0008_classy_bruce_banner",
+      "breakpoints": true
     }
   ]
 }

@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
 import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
@@ -25,6 +26,8 @@ type PageRenderState = {
 
 type Props = {
   lang: string;
+  lockedAfterPage?: number;
+  paywallCard?: ReactNode;
   pdfUrl: string;
   title: string;
 };
@@ -55,7 +58,7 @@ function getText(lang: string) {
   return textByLanguage[lang as keyof typeof textByLanguage] || textByLanguage.fr;
 }
 
-export default function MagazineMobilePdfViewer({ lang, pdfUrl, title }: Props) {
+export default function MagazineMobilePdfViewer({ lang, lockedAfterPage, paywallCard, pdfUrl, title }: Props) {
   const text = getText(lang);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const pageNodesRef = useRef<Record<number, HTMLDivElement | null>>({});
@@ -381,39 +384,46 @@ export default function MagazineMobilePdfViewer({ lang, pdfUrl, title }: Props) 
             const pageState = pageStates[pageNumber];
             const pageHeight = pageState?.height || estimatedHeight;
             const pageLabel = `${text.page} ${pageNumber}`;
+            const shouldRenderPaywallAfterPage =
+              Boolean(paywallCard) &&
+              typeof lockedAfterPage === "number" &&
+              pageNumber === Math.min(pageCount, Math.max(lockedAfterPage, 1));
 
             return (
-              <div key={pageNumber} className="overflow-hidden rounded-2xl border border-border bg-background shadow-sm">
-                <div className="flex items-center justify-between border-b border-border/80 px-4 py-2 text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-                  <span>{pageLabel}</span>
-                  <span>{title}</span>
+              <div key={pageNumber} className="space-y-4">
+                <div className="overflow-hidden rounded-2xl border border-border bg-background shadow-sm">
+                  <div className="flex items-center justify-between border-b border-border/80 px-4 py-2 text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+                    <span>{pageLabel}</span>
+                    <span>{title}</span>
+                  </div>
+                  <div
+                    ref={(node) => {
+                      pageNodesRef.current[pageNumber] = node;
+                    }}
+                    data-page-number={pageNumber}
+                    className="relative w-full bg-white"
+                    style={{ minHeight: `${pageHeight}px` }}
+                  >
+                    {pageState?.src ? (
+                      <img
+                        src={pageState.src}
+                        alt={`${title} - ${pageLabel}`}
+                        className="block h-auto w-full"
+                        loading={pageNumber <= PRELOAD_PAGES ? "eager" : "lazy"}
+                      />
+                    ) : pageState?.status === "error" ? (
+                      <div className="flex min-h-[240px] items-center justify-center px-6 py-12 text-center text-sm text-muted-foreground">
+                        {text.error}
+                      </div>
+                    ) : (
+                      <div className="flex h-full min-h-[240px] items-center justify-center px-6 py-12 text-sm text-muted-foreground">
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        {text.loading}
+                      </div>
+                    )}
+                  </div>
                 </div>
-                <div
-                  ref={(node) => {
-                    pageNodesRef.current[pageNumber] = node;
-                  }}
-                  data-page-number={pageNumber}
-                  className="relative w-full bg-white"
-                  style={{ minHeight: `${pageHeight}px` }}
-                >
-                  {pageState?.src ? (
-                    <img
-                      src={pageState.src}
-                      alt={`${title} - ${pageLabel}`}
-                      className="block h-auto w-full"
-                      loading={pageNumber <= PRELOAD_PAGES ? "eager" : "lazy"}
-                    />
-                  ) : pageState?.status === "error" ? (
-                    <div className="flex min-h-[240px] items-center justify-center px-6 py-12 text-center text-sm text-muted-foreground">
-                      {text.error}
-                    </div>
-                  ) : (
-                    <div className="flex h-full min-h-[240px] items-center justify-center px-6 py-12 text-sm text-muted-foreground">
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      {text.loading}
-                    </div>
-                  )}
-                </div>
+                {shouldRenderPaywallAfterPage ? paywallCard : null}
               </div>
             );
           })}

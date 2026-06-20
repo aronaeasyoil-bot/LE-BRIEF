@@ -61,13 +61,15 @@ function validateUpload(bucket: UploadBucket, mimeType: string, size: number) {
   }
 }
 
-export async function uploadAdminFile(input: {
+type UploadInput = {
   bucket: UploadBucket;
   fileName: string;
   mimeType: string;
   dataBase64: string;
   size: number;
-}) {
+};
+
+function buildStorageUploadPayload(input: UploadInput, storagePrefix = "le-brief") {
   validateUpload(input.bucket, input.mimeType, input.size);
 
   const normalizedFileName = sanitizeFileName(input.fileName);
@@ -76,8 +78,22 @@ export async function uploadAdminFile(input: {
     ? normalizedFileName.slice(0, normalizedFileName.length - extension.length)
     : normalizedFileName;
   const finalName = `${baseName || "file"}${extension}`;
-  const storageKey = `le-brief/${input.bucket}/${Date.now()}-${finalName}`;
+  const storageKey = `${storagePrefix}/${input.bucket}/${Date.now()}-${finalName}`;
   const buffer = Buffer.from(input.dataBase64, "base64");
 
-  return storagePut(storageKey, buffer, input.mimeType);
+  return {
+    buffer,
+    mimeType: input.mimeType,
+    storageKey,
+  };
+}
+
+export async function uploadAdminFile(input: UploadInput) {
+  const payload = buildStorageUploadPayload(input, "le-brief");
+  return storagePut(payload.storageKey, payload.buffer, payload.mimeType);
+}
+
+export async function uploadMagazinePaymentProof(input: UploadInput) {
+  const payload = buildStorageUploadPayload(input, "le-brief/magazine-payments");
+  return storagePut(payload.storageKey, payload.buffer, payload.mimeType);
 }

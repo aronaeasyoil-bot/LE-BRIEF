@@ -5,6 +5,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import Navbar from "@/components/Navbar";
 import AdminFileUploadField from "@/components/AdminFileUploadField";
+import MagazinePaymentsAdminPanel from "@/components/admin/MagazinePaymentsAdminPanel";
 import NewsletterAdminTab from "@/components/admin/NewsletterAdminTab";
 import { getAdminLoginUrl } from "@/const";
 import { toast } from "sonner";
@@ -1447,6 +1448,9 @@ function MagazinesTab() {
     coverImageUrl: "",
     pdfUrl: "",
     issueNumber: 1,
+    isPremium: true,
+    previewPageCount: 3,
+    priceFcfa: 1000,
     publishedAt: dateInputValue(new Date()),
   });
   const { data: magazines = [] } = trpc.magazines.all.useQuery();
@@ -1465,6 +1469,9 @@ function MagazinesTab() {
       coverImageUrl: "",
       pdfUrl: "",
       issueNumber: 1,
+      isPremium: true,
+      previewPageCount: 3,
+      priceFcfa: 1000,
       publishedAt: dateInputValue(new Date()),
     });
   };
@@ -1483,6 +1490,9 @@ function MagazinesTab() {
       coverImageUrl: magazine.coverImageUrl || "",
       pdfUrl: magazine.pdfUrl || "",
       issueNumber: magazine.issueNumber || 1,
+      isPremium: magazine.isPremium ?? true,
+      previewPageCount: magazine.previewPageCount || 3,
+      priceFcfa: magazine.priceFcfa || 1000,
       publishedAt: dateInputValue(magazine.publishedAt),
     });
     setShowForm(true);
@@ -1504,6 +1514,8 @@ function MagazinesTab() {
     const payload = {
       ...formData,
       issueNumber: Number(formData.issueNumber) || 1,
+      previewPageCount: Number(formData.previewPageCount) || 3,
+      priceFcfa: Number(formData.priceFcfa) || 1000,
       publishedAt: formData.publishedAt ? new Date(formData.publishedAt) : new Date(),
     };
     try {
@@ -1547,6 +1559,35 @@ function MagazinesTab() {
             <Field label={admin.date}>
               <input type="date" className={inputClass} value={formData.publishedAt} onChange={(e) => setFormData({ ...formData, publishedAt: e.target.value })} />
             </Field>
+            <Field label="Premium">
+              <label className="flex h-[42px] items-center gap-2 rounded-md border border-border bg-input px-3 text-sm text-foreground">
+                <input
+                  type="checkbox"
+                  checked={formData.isPremium}
+                  onChange={(e) => setFormData({ ...formData, isPremium: e.target.checked })}
+                />
+                <span>Blocage apres apercu</span>
+              </label>
+            </Field>
+            <Field label="Prix FCFA">
+              <input
+                type="number"
+                className={inputClass}
+                value={formData.priceFcfa}
+                onChange={(e) => setFormData({ ...formData, priceFcfa: Number(e.target.value) || 1000 })}
+              />
+            </Field>
+          </div>
+          <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-4">
+            <Field label="Pages apercu">
+              <input
+                type="number"
+                min={1}
+                className={inputClass}
+                value={formData.previewPageCount}
+                onChange={(e) => setFormData({ ...formData, previewPageCount: Number(e.target.value) || 3 })}
+              />
+            </Field>
             <Field label={admin.coverUrl}>
               <AdminFileUploadField
                 accept="image/*"
@@ -1584,6 +1625,7 @@ function MagazinesTab() {
             <TableHead>{admin.title}</TableHead>
             <TableHead>{admin.issue}</TableHead>
             <TableHead>{admin.date}</TableHead>
+            <TableHead>Premium</TableHead>
             <TableHead>{admin.actions}</TableHead>
           </tr>
         </thead>
@@ -1593,6 +1635,7 @@ function MagazinesTab() {
               <TableCell className="max-w-[340px] truncate text-foreground">{localizedTitle(magazine)}</TableCell>
               <TableCell>{magazine.issueNumber}</TableCell>
               <TableCell>{magazine.publishedAt ? new Date(magazine.publishedAt).toLocaleDateString("fr-FR") : "-"}</TableCell>
+              <TableCell>{magazine.isPremium ? `Oui - ${magazine.priceFcfa || 1000} FCFA` : "Libre"}</TableCell>
               <TableCell>
                 <RowActions onEdit={() => handleEdit(magazine)} onDelete={() => handleDelete(magazine.id)} />
               </TableCell>
@@ -1600,6 +1643,7 @@ function MagazinesTab() {
           ))}
         </tbody>
       </DataTable>
+      <MagazinePaymentsAdminPanel />
     </>
   );
 }

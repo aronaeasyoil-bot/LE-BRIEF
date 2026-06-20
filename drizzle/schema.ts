@@ -139,12 +139,40 @@ export const magazines = mysqlTable("magazines", {
   issueNumber: int("issueNumber").notNull(),
   pdfUrl: text("pdfUrl").notNull(),
   coverImageUrl: text("coverImageUrl"),
+  isPremium: boolean("isPremium").default(true).notNull(),
+  previewPageCount: int("previewPageCount").default(3).notNull(),
+  priceFcfa: int("priceFcfa").default(1000).notNull(),
   publishedAt: timestamp("publishedAt").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 
 export type Magazine = typeof magazines.$inferSelect;
 export type InsertMagazine = typeof magazines.$inferInsert;
+
+/**
+ * Magazine payment requests for premium access
+ */
+export const magazinePaymentRequests = mysqlTable("magazinePaymentRequests", {
+  id: int("id").autoincrement().primaryKey(),
+  magazineId: int("magazineId").notNull(),
+  fullName: varchar("fullName", { length: 200 }).notNull(),
+  email: varchar("email", { length: 320 }).notNull(),
+  whatsappNumber: varchar("whatsappNumber", { length: 40 }),
+  paymentMethod: mysqlEnum("paymentMethod", ["wave"]).default("wave").notNull(),
+  amountFcfa: int("amountFcfa").default(1000).notNull(),
+  proofUrl: text("proofUrl").notNull(),
+  status: mysqlEnum("status", ["pending", "approved", "rejected"]).default("pending").notNull(),
+  accessToken: varchar("accessToken", { length: 128 }).unique(),
+  adminNotes: text("adminNotes"),
+  approvedAt: timestamp("approvedAt"),
+  rejectedAt: timestamp("rejectedAt"),
+  accessTokenSentAt: timestamp("accessTokenSentAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type MagazinePaymentRequest = typeof magazinePaymentRequests.$inferSelect;
+export type InsertMagazinePaymentRequest = typeof magazinePaymentRequests.$inferInsert;
 
 /**
  * Automated source monitoring settings

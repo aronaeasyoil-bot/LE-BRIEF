@@ -1,5 +1,6 @@
 import Footer from "@/components/Footer";
 import MagazineMobilePdfViewer from "@/components/MagazineMobilePdfViewer";
+import MagazineUnlockCard from "@/components/MagazineUnlockCard";
 import Navbar from "@/components/Navbar";
 import WhatsAppButton from "@/components/WhatsAppButton";
 import { Button } from "@/components/ui/button";
@@ -9,8 +10,8 @@ import { PREVIEW_IMAGE_URL, SITE_DESCRIPTION, getMagazineSiteUrl } from "@/lib/s
 import { shareLink, type SharePlatform } from "@/lib/share";
 import { trpc } from "@/lib/trpc";
 import { motion } from "framer-motion";
-import { ArrowLeft, BookOpen, Copy, Download, MessageCircle, Share2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { ArrowLeft, BookOpen, Copy, Download, Lock, MessageCircle, Share2 } from "lucide-react";
+import { useEffect } from "react";
 import { toast } from "sonner";
 import { Link, useParams } from "wouter";
 
@@ -40,6 +41,10 @@ export default function MagazinePage() {
     { id: magazineId },
     { enabled: Number.isInteger(magazineId) && magazineId > 0 },
   );
+  const { data: paywallStatus } = trpc.magazinePayments.status.useQuery(
+    { magazineId },
+    { enabled: Number.isInteger(magazineId) && magazineId > 0 },
+  );
 
   const magazineTitle = magazine ? getMagazineTitle(magazine, lang) : "Kiosque";
   const magazineUrl = getMagazineSiteUrl(magazineId, { reader: Boolean(magazine?.pdfUrl) });
@@ -54,26 +59,10 @@ export default function MagazinePage() {
     : SITE_DESCRIPTION;
   const embeddedDocumentUrl = magazine?.pdfUrl ? getMagazineDocumentProxyUrl(magazineId) : "";
   const canEmbedDocument = Boolean(magazine?.pdfUrl);
-  const [useMobileReader, setUseMobileReader] = useState(false);
-
-  useEffect(() => {
-    if (typeof window === "undefined") {
-      return;
-    }
-
-    const mediaQuery = window.matchMedia("(max-width: 767px)");
-    const syncViewport = () => setUseMobileReader(mediaQuery.matches);
-
-    syncViewport();
-
-    if (typeof mediaQuery.addEventListener === "function") {
-      mediaQuery.addEventListener("change", syncViewport);
-      return () => mediaQuery.removeEventListener("change", syncViewport);
-    }
-
-    mediaQuery.addListener(syncViewport);
-    return () => mediaQuery.removeListener(syncViewport);
-  }, []);
+  const isPremiumMagazine = Boolean(paywallStatus?.isPremium);
+  const isUnlocked = Boolean(paywallStatus?.isUnlocked || !paywallStatus?.isPremium);
+  const previewPageCount = paywallStatus?.previewPageCount || 3;
+  const priceFcfa = paywallStatus?.priceFcfa || 1000;
 
   useEffect(() => {
     if (!canEmbedDocument || typeof window === "undefined" || window.location.hash !== `#${MAGAZINE_READER_ID}`) {
@@ -148,8 +137,9 @@ export default function MagazinePage() {
 
   const issueLabel = lang === "fr" ? "Numero" : lang === "ar" ? "العدد" : "Issue";
   const readLabel = lang === "fr" ? "Lire le magazine" : lang === "ar" ? "قراءة المجلة" : "Read magazine";
-  const downloadLabel =
-    lang === "fr" ? "Telecharger le PDF" : lang === "ar" ? "تحميل PDF" : "Download PDF";
+  const downloadLabel = lang === "fr" ? "Telecharger le PDF" : lang === "ar" ? "تحميل PDF" : "Download PDF";
+  const unlockLabel =
+    lang === "fr" ? `Debloquer ${priceFcfa} FCFA` : lang === "ar" ? `افتح مقابل ${priceFcfa} FCFA` : `Unlock for ${priceFcfa} FCFA`;
 
   return (
     <div className="min-h-screen bg-background" dir={rtl ? "rtl" : "ltr"}>
@@ -217,6 +207,15 @@ export default function MagazinePage() {
               <p className="mt-6 max-w-3xl text-base leading-relaxed text-muted-foreground">
                 {pageLead}
               </p>
+              {isPremiumMagazine && !isUnlocked ? (
+                <p className="mt-4 max-w-3xl text-sm text-muted-foreground">
+                  {lang === "fr"
+                    ? `Lecture libre sur les ${previewPageCount} premieres pages. Le reste du numero se debloque apres validation du paiement Wave.`
+                    : lang === "ar"
+                      ? `القراءة متاحة لأول ${previewPageCount} صفحات. بقية العدد تُفتح بعد التحقق من دفع Wave.`
+                      : `Free reading on the first ${previewPageCount} pages. The rest unlocks after Wave payment validation.`}
+                </p>
+              ) : null}
 
               <div className="mt-8 flex flex-wrap gap-3">
                 {canEmbedDocument ? (
@@ -236,14 +235,23 @@ export default function MagazinePage() {
                     {readLabel}
                   </a>
                 )}
-                {embeddedDocumentUrl ? (
+                {embeddedDocumentUrl && isUnlocked ? (
                   <a
-                    href={embeddedDocumentUrl}
+                    href={`${embeddedDocumentUrl}?download=1`}
                     download
                     className="inline-flex items-center gap-2 rounded-lg border border-border px-6 py-3 text-sm font-medium text-foreground transition-colors hover:bg-secondary"
                   >
                     <Download className="h-4 w-4" />
                     {downloadLabel}
+                  </a>
+                ) : null}
+                {isPremiumMagazine && !isUnlocked ? (
+                  <a
+                    href={`#${MAGAZINE_READER_ID}`}
+                    className="inline-flex items-center gap-2 rounded-lg border border-gold px-6 py-3 text-sm font-medium text-gold transition-colors hover:bg-gold/10"
+                  >
+                    <Lock className="h-4 w-4" />
+                    {unlockLabel}
                   </a>
                 ) : null}
                 <Button
@@ -292,13 +300,11 @@ export default function MagazinePage() {
                   <p className="text-sm font-semibold uppercase tracking-[0.18em] text-gold">
                     {lang === "fr" ? "Lecture sur LE BRIEF" : lang === "ar" ? "القراءة على LE BRIEF" : "Read on LE BRIEF"}
                   </p>
-                  <h2 className="mt-2 text-2xl font-semibold text-foreground">
-                    {magazineTitle}
-                  </h2>
+                  <h2 className="mt-2 text-2xl font-semibold text-foreground">{magazineTitle}</h2>
                 </div>
-                {embeddedDocumentUrl ? (
+                {embeddedDocumentUrl && isUnlocked ? (
                   <a
-                    href={embeddedDocumentUrl}
+                    href={`${embeddedDocumentUrl}?download=1`}
                     download
                     className="inline-flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-secondary"
                   >
@@ -307,19 +313,25 @@ export default function MagazinePage() {
                   </a>
                 ) : null}
               </div>
-              {useMobileReader ? (
-                <div className="overflow-hidden rounded-2xl border border-border bg-background p-2">
-                  <MagazineMobilePdfViewer lang={lang} pdfUrl={embeddedDocumentUrl} title={magazineTitle} />
-                </div>
-              ) : (
-                <div className="overflow-hidden rounded-2xl border border-border bg-background">
-                  <iframe
-                    src={`${embeddedDocumentUrl}#toolbar=0&navpanes=0&view=FitH`}
-                    title={magazineTitle}
-                    className="h-[72vh] min-h-[680px] w-full md:h-[84vh]"
-                  />
-                </div>
-              )}
+              <div className="overflow-hidden rounded-2xl border border-border bg-background p-2">
+                <MagazineMobilePdfViewer
+                  lang={lang}
+                  lockedAfterPage={isPremiumMagazine && !isUnlocked ? previewPageCount : undefined}
+                  paywallCard={
+                    isPremiumMagazine && !isUnlocked && paywallStatus ? (
+                      <MagazineUnlockCard
+                        magazineId={magazineId}
+                        previewPageCount={previewPageCount}
+                        priceFcfa={priceFcfa}
+                        waveNumber={paywallStatus.waveNumber}
+                        waveQrImageUrl={paywallStatus.waveQrImageUrl}
+                      />
+                    ) : undefined
+                  }
+                  pdfUrl={embeddedDocumentUrl}
+                  title={magazineTitle}
+                />
+              </div>
             </motion.section>
           ) : null}
         </div>

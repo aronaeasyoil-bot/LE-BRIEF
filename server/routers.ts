@@ -1,6 +1,14 @@
 import { COOKIE_NAME, ONE_YEAR_MS } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
-import { uploadAdminFile } from "./_core/fileUpload";
+import { uploadAdminFile, uploadMagazinePaymentProof } from "./_core/fileUpload";
+import { getMagazineDocumentProxyUrl } from "./_core/magazineDocuments";
+import {
+  buildMagazineAccessUrl,
+  createMagazinePaymentAccessToken,
+  getMagazinePaywallPublicConfig,
+  hasUnlockedMagazineAccess,
+  sendMagazineAccessEmail,
+} from "./_core/magazinePaywall";
 import { getPublicMarketPrices } from "./_core/marketPrices";
 import {
   generateDailyNewsletterDraft,
@@ -35,10 +43,16 @@ import {
   addSubscriber,
   getAllSubscribers,
   getAllAutomaticSourceItems,
+  getMagazineById,
+  getMagazinePaymentRequestById,
+  getMagazinePaymentRequests,
+  createMagazinePaymentRequest,
+  updateMagazinePaymentRequest,
   getNewsletterCampaigns,
   getSubscribers,
   getSourceAutomationSettings,
   updateSourceAutomationSettings,
+  getMagazines,
 } from "./db";
 import { desc, eq, asc } from "drizzle-orm";
 import { magazines, advertisements } from "../drizzle/schema";
@@ -87,12 +101,30 @@ function normalizeMagazineRecord(magazine: any) {
   };
 }
 
+function normalizePublicMagazineRecord(magazine: any) {
+  const normalized = normalizeMagazineRecord(magazine);
+  return {
+    ...normalized,
+    pdfUrl: normalized.pdfUrl ? getMagazineDocumentProxyUrl(magazine.id) : undefined,
+  };
+}
+
 function normalizeAdvertisementRecord(advertisement: any) {
   return {
     ...advertisement,
     imageUrl: normalizeOptionalText(advertisement.imageUrl),
     linkUrl: normalizeOptionalText(advertisement.linkUrl),
     videoUrl: normalizeOptionalText(advertisement.videoUrl),
+  };
+}
+
+function normalizeMagazinePaymentRequestRecord(request: any) {
+  return {
+    ...request,
+    accessToken: normalizeOptionalText(request.accessToken),
+    adminNotes: normalizeOptionalText(request.adminNotes),
+    proofUrl: normalizeOptionalText(request.proofUrl),
+    whatsappNumber: normalizeOptionalText(request.whatsappNumber),
   };
 }
 
@@ -529,14 +561,14 @@ export const appRouter = router({
   magazines: router({
     list: publicProcedure.query(async () => {
       const { getMagazines } = await import("./db");
-      return (await getMagazines()).slice(0, 10).map(normalizeMagazineRecord);
+      return (await getMagazines()).slice(0, 10).map(normalizePublicMagazineRecord);
     }),
     byId: publicProcedure
       .input(z.object({ id: z.number() }))
       .query(async ({ input }) => {
         const { getMagazineById } = await import("./db");
         const magazine = await getMagazineById(input.id);
-        return magazine ? normalizeMagazineRecord(magazine) : null;
+        return magazine ? normalizePublicMagazineRecord(magazine) : null;
       }),
     all: adminProcedure.query(async () => {
       const { getMagazines } = await import("./db");
@@ -550,6 +582,9 @@ export const appRouter = router({
         pdfUrl: z.string(),
         coverImageUrl: z.string().optional(),
         issueNumber: z.number(),
+        isPremium: z.boolean().optional(),
+        previewPageCount: z.number().int().min(1).max(20).optional(),
+        priceFcfa: z.number().int().min(0).max(1000000).optional(),
         publishedAt: z.date().optional(),
       }))
       .mutation(async ({ input }) => {
@@ -559,6 +594,9 @@ export const appRouter = router({
           publishedAt: input.publishedAt ?? new Date(),
           coverImageUrl: normalizeOptionalText(input.coverImageUrl) ?? "",
           pdfUrl: normalizeOptionalText(input.pdfUrl) ?? "",
+          isPremium: input.isPremium ?? true,
+          previewPageCount: input.previewPageCount ?? 3,
+          priceFcfa: input.priceFcfa ?? 1000,
         } as any);
       }),
     update: adminProcedure
@@ -570,6 +608,9 @@ export const appRouter = router({
         pdfUrl: z.string().optional(),
         coverImageUrl: z.string().optional(),
         issueNumber: z.number().optional(),
+        isPremium: z.boolean().optional(),
+        previewPageCount: z.number().int().min(1).max(20).optional(),
+        priceFcfa: z.number().int().min(0).max(1000000).optional(),
         publishedAt: z.date().optional(),
       }))
       .mutation(async ({ input }) => {
@@ -586,6 +627,164 @@ export const appRouter = router({
       .mutation(async ({ input }) => {
         const { deleteMagazine } = await import("./db");
         return deleteMagazine(input.id);
+      }),
+  }),
+
+  magazinePayments: router({
+    status: publicProcedure
+      .input(z.object({ magazineId: z.number() }))
+      .query(async ({ ctx, input }) => {
+        const magazine = await getMagazineById(input.magazineId);
+        if (!magazine) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Magazine not found" });
+        }
+
+        const paywall = getMagazinePaywallPublicConfig(magazine);
+        return {
+          ...paywall,
+          isUnlocked: hasUnlockedMagazineAccess(ctx.req, magazine),
+        };
+      }),
+    requestAccess: publicProcedure
+      .input(
+        z.object({
+          magazineId: z.number(),
+          fullName: z.string().min(2).max(200),
+          email: z.string().email(),
+          whatsappNumber: z.string().min(5).max(40).optional(),
+          proofFile: z.object({
+            fileName: z.string().min(1),
+            mimeType: z.string().min(1),
+            dataBase64: z.string().min(1),
+            size: z.number().positive(),
+          }),
+        }),
+      )
+      .mutation(async ({ input }) => {
+        const magazine = await getMagazineById(input.magazineId);
+        if (!magazine) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Magazine not found" });
+        }
+
+        if (!magazine.isPremium) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "This magazine is not locked." });
+        }
+
+        const uploadedProof = await uploadMagazinePaymentProof({
+          bucket: "images",
+          ...input.proofFile,
+        });
+
+        const requestId = await createMagazinePaymentRequest({
+          amountFcfa: magazine.priceFcfa ?? 1000,
+          email: input.email.trim().toLowerCase(),
+          fullName: input.fullName.trim(),
+          magazineId: magazine.id,
+          paymentMethod: "wave",
+          proofUrl: uploadedProof.url,
+          status: "pending",
+          whatsappNumber: normalizeOptionalText(input.whatsappNumber),
+        });
+
+        return {
+          id: requestId,
+          success: true,
+        };
+      }),
+    adminList: adminProcedure.query(async () => {
+      const [requests, allMagazines] = await Promise.all([
+        getMagazinePaymentRequests(400),
+        getMagazines(),
+      ]);
+      const magazineMap = new Map(allMagazines.map((magazine) => [magazine.id, magazine]));
+
+      return requests.map((request) => {
+        const magazine = magazineMap.get(request.magazineId) || null;
+        return {
+          ...normalizeMagazinePaymentRequestRecord(request),
+          magazine,
+        };
+      });
+    }),
+    approve: adminProcedure
+      .input(
+        z.object({
+          id: z.number(),
+          adminNotes: z.string().max(2000).optional(),
+        }),
+      )
+      .mutation(async ({ input }) => {
+        const request = await getMagazinePaymentRequestById(input.id);
+        if (!request) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Payment request not found" });
+        }
+
+        const magazine = await getMagazineById(request.magazineId);
+        if (!magazine) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Magazine not found" });
+        }
+
+        const accessToken = request.accessToken || createMagazinePaymentAccessToken();
+        let emailResult: { accessUrl?: string; sent?: boolean; skipped?: boolean } = {};
+
+        await updateMagazinePaymentRequest(request.id, {
+          accessToken,
+          adminNotes: normalizeOptionalText(input.adminNotes),
+          approvedAt: new Date(),
+          rejectedAt: null,
+          status: "approved",
+        } as any);
+
+        try {
+          emailResult = await sendMagazineAccessEmail({
+            accessToken,
+            magazine,
+            recipientEmail: request.email,
+            recipientName: request.fullName,
+          });
+
+          if (emailResult.sent) {
+            await updateMagazinePaymentRequest(request.id, {
+              accessTokenSentAt: new Date(),
+            } as any);
+          }
+        } catch (error) {
+          emailResult = {
+            accessUrl: undefined,
+            sent: false,
+            skipped: false,
+          };
+          console.error("[Magazine payments] Approval email failed:", error);
+        }
+
+        return {
+          accessToken,
+          accessUrl: buildMagazineAccessUrl(magazine.id, accessToken),
+          emailSent: emailResult.sent ?? false,
+          success: true,
+        };
+      }),
+    reject: adminProcedure
+      .input(
+        z.object({
+          id: z.number(),
+          adminNotes: z.string().max(2000).optional(),
+        }),
+      )
+      .mutation(async ({ input }) => {
+        const request = await getMagazinePaymentRequestById(input.id);
+        if (!request) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Payment request not found" });
+        }
+
+        await updateMagazinePaymentRequest(request.id, {
+          adminNotes: normalizeOptionalText(input.adminNotes),
+          approvedAt: null,
+          rejectedAt: new Date(),
+          status: "rejected",
+        } as any);
+
+        return { success: true };
       }),
   }),
 

@@ -2,7 +2,16 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { Readable } from "node:stream";
 import { fileURLToPath } from "node:url";
-import { getAllCategories, getArticleById, getMagazineById, getMagazines, getPublishedArticles, getPublishedEvents } from "../db";
+import {
+  getAllCategories,
+  getArticleById,
+  getMagazineById,
+  getMagazinePaymentRequestByAccessToken,
+  getMagazines,
+  getPublishedArticles,
+  getPublishedEvents,
+} from "../db";
+import { buildPreviewPdfBuffer, grantMagazineAccess, hasUnlockedMagazineAccess } from "./magazinePaywall";
 import { resolveMagazineDocumentUrl } from "./magazineDocuments";
 import {
   buildNewsSitemapXml,
@@ -190,9 +199,46 @@ export function registerSeoRoutes(app: any) {
           return;
         }
 
+        const unlocked = hasUnlockedMagazineAccess(req, magazine);
+        if (req.query?.download && magazine.isPremium && !unlocked) {
+          res.status(403).send("Magazine download is locked until payment validation.");
+          return;
+        }
+
         const resolvedUrl = await resolveMagazineDocumentUrl(magazine.pdfUrl);
         if (!resolvedUrl) {
           res.status(404).send("Magazine file not found");
+          return;
+        }
+
+        if (magazine.isPremium && !unlocked) {
+          const upstream = await fetch(resolvedUrl, {
+            headers: {
+              "User-Agent": "LE BRIEF Magazine Proxy",
+            },
+            redirect: "follow",
+          });
+
+          if (!upstream.ok) {
+            res.status(502).send("Unable to fetch the magazine file");
+            return;
+          }
+
+          const previewBuffer = await buildPreviewPdfBuffer(
+            Buffer.from(await upstream.arrayBuffer()),
+            Math.max(Number(magazine.previewPageCount || 3), 1),
+          );
+          const fileName =
+            typeof magazine.issueNumber === "number"
+              ? `LE-BRIEF-Magazine-${magazine.issueNumber}-preview.pdf`
+              : `LE-BRIEF-Magazine-${magazine.id}-preview.pdf`;
+
+          res.status(200);
+          res.setHeader("Cache-Control", NO_CACHE_HEADER);
+          res.setHeader("Content-Type", "application/pdf");
+          res.setHeader("Content-Length", String(previewBuffer.byteLength));
+          res.setHeader("Content-Disposition", `inline; filename="${fileName}"`);
+          res.end(previewBuffer);
           return;
         }
 
@@ -247,6 +293,30 @@ export function registerSeoRoutes(app: any) {
     }
   });
 
+  app.get("/api/magazine-access", async (req: any, res: any) => {
+    const magazineId = Number(req.query?.magazineId);
+    const accessToken = typeof req.query?.token === "string" ? req.query.token.trim() : "";
+
+    if (!Number.isInteger(magazineId) || magazineId <= 0 || !accessToken) {
+      res.redirect(302, `${SITE_URL}/`);
+      return;
+    }
+
+    try {
+      const request = await getMagazinePaymentRequestByAccessToken(accessToken);
+      if (!request || request.magazineId !== magazineId || request.status !== "approved") {
+        res.redirect(302, `${SITE_URL}/magazine/${magazineId}`);
+        return;
+      }
+
+      grantMagazineAccess(req, res, magazineId);
+      res.redirect(302, `${SITE_URL}/magazine/${magazineId}#reader`);
+    } catch (error) {
+      console.error("[SEO] Magazine access route failed:", error);
+      res.redirect(302, `${SITE_URL}/magazine/${magazineId}`);
+    }
+  });
+
   app.get("/api/magazine-file/:id", async (req: any, res: any) => {
     const magazineId = Number(req.params?.id);
 
@@ -262,9 +332,46 @@ export function registerSeoRoutes(app: any) {
         return;
       }
 
+      const unlocked = hasUnlockedMagazineAccess(req, magazine);
+      if (req.query?.download && magazine.isPremium && !unlocked) {
+        res.status(403).send("Magazine download is locked until payment validation.");
+        return;
+      }
+
       const resolvedUrl = await resolveMagazineDocumentUrl(magazine.pdfUrl);
       if (!resolvedUrl) {
         res.status(404).send("Magazine file not found");
+        return;
+      }
+
+      if (magazine.isPremium && !unlocked) {
+        const upstream = await fetch(resolvedUrl, {
+          headers: {
+            "User-Agent": "LE BRIEF Magazine Proxy",
+          },
+          redirect: "follow",
+        });
+
+        if (!upstream.ok) {
+          res.status(502).send("Unable to fetch the magazine file");
+          return;
+        }
+
+        const previewBuffer = await buildPreviewPdfBuffer(
+          Buffer.from(await upstream.arrayBuffer()),
+          Math.max(Number(magazine.previewPageCount || 3), 1),
+        );
+        const fileName =
+          typeof magazine.issueNumber === "number"
+            ? `LE-BRIEF-Magazine-${magazine.issueNumber}-preview.pdf`
+            : `LE-BRIEF-Magazine-${magazine.id}-preview.pdf`;
+
+        res.status(200);
+        res.setHeader("Cache-Control", NO_CACHE_HEADER);
+        res.setHeader("Content-Type", "application/pdf");
+        res.setHeader("Content-Length", String(previewBuffer.byteLength));
+        res.setHeader("Content-Disposition", `inline; filename="${fileName}"`);
+        res.end(previewBuffer);
         return;
       }
 

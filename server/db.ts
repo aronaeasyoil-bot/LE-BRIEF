@@ -10,6 +10,7 @@ import {
   newsletterCampaigns,
   advertisements,
   magazines,
+  magazinePaymentRequests,
   sourceAutomationSettings,
   automaticSourceItems,
   marketPrices,
@@ -20,6 +21,7 @@ import type {
   InsertCategory,
   InsertEvent,
   InsertMarketPrice,
+  InsertMagazinePaymentRequest,
   InsertNewsletterCampaign,
   InsertSourceAutomationSettings,
   InsertSubscriber,
@@ -610,7 +612,18 @@ export async function deleteAd(id: number) {
 }
 
 // Magazines helpers
-export async function createMagazine(data: { titleFr: string; titleEn?: string; titleAr?: string; pdfUrl: string; coverImageUrl?: string; issueNumber: number; publishedAt: Date }) {
+export async function createMagazine(data: {
+  titleFr: string;
+  titleEn?: string;
+  titleAr?: string;
+  pdfUrl: string;
+  coverImageUrl?: string;
+  issueNumber: number;
+  isPremium?: boolean;
+  previewPageCount?: number;
+  priceFcfa?: number;
+  publishedAt: Date;
+}) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   return db.insert(magazines).values({
@@ -620,6 +633,9 @@ export async function createMagazine(data: { titleFr: string; titleEn?: string; 
     pdfUrl: data.pdfUrl,
     coverImageUrl: data.coverImageUrl,
     issueNumber: data.issueNumber,
+    isPremium: data.isPremium ?? true,
+    previewPageCount: data.previewPageCount ?? 3,
+    priceFcfa: data.priceFcfa ?? 1000,
     publishedAt: data.publishedAt,
   });
 }
@@ -640,7 +656,21 @@ export async function getMagazineById(id: number) {
   return result[0] || null;
 }
 
-export async function updateMagazine(id: number, data: Partial<{ titleFr: string; titleEn?: string; titleAr?: string; pdfUrl: string; coverImageUrl: string; issueNumber: number; publishedAt: Date }>) {
+export async function updateMagazine(
+  id: number,
+  data: Partial<{
+    titleFr: string;
+    titleEn?: string;
+    titleAr?: string;
+    pdfUrl: string;
+    coverImageUrl: string;
+    issueNumber: number;
+    isPremium: boolean;
+    previewPageCount: number;
+    priceFcfa: number;
+    publishedAt: Date;
+  }>,
+) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   return db.update(magazines).set(data as any).where(eq(magazines.id, id));
@@ -650,4 +680,52 @@ export async function deleteMagazine(id: number) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   return db.delete(magazines).where(eq(magazines.id, id));
+}
+
+export async function createMagazinePaymentRequest(data: InsertMagazinePaymentRequest) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(magazinePaymentRequests).values(data);
+  return result[0].insertId;
+}
+
+export async function getMagazinePaymentRequestById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db
+    .select()
+    .from(magazinePaymentRequests)
+    .where(eq(magazinePaymentRequests.id, id))
+    .limit(1);
+  return result[0];
+}
+
+export async function getMagazinePaymentRequestByAccessToken(accessToken: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db
+    .select()
+    .from(magazinePaymentRequests)
+    .where(eq(magazinePaymentRequests.accessToken, accessToken))
+    .limit(1);
+  return result[0];
+}
+
+export async function getMagazinePaymentRequests(limit = 200) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(magazinePaymentRequests)
+    .orderBy(desc(magazinePaymentRequests.createdAt), desc(magazinePaymentRequests.id))
+    .limit(limit);
+}
+
+export async function updateMagazinePaymentRequest(
+  id: number,
+  data: Partial<InsertMagazinePaymentRequest>,
+) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(magazinePaymentRequests).set(data as any).where(eq(magazinePaymentRequests.id, id));
 }

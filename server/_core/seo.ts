@@ -43,7 +43,10 @@ type ArticleLike = {
 type MagazineLike = {
   coverImageUrl?: NullableText;
   id: number;
+  isPremium?: boolean | null;
   issueNumber?: number | null;
+  previewPageCount?: number | null;
+  priceFcfa?: number | null;
   pdfUrl?: NullableText;
   publishedAt?: Date | null | string;
   titleAr?: NullableText;
@@ -533,7 +536,7 @@ function canEmbedMagazineDocument(magazine: MagazineLike) {
 function buildMagazineJsonLd(magazine: MagazineLike, title: string, description: string, imageUrl: string) {
   const publishedAt = toIsoDate(magazine.publishedAt);
   const updatedAt = toIsoDate(magazine.updatedAt) || publishedAt;
-  const pdfUrl = toAbsoluteUrl(magazine.pdfUrl);
+  const documentUrl = getMagazineDocumentUrl(magazine);
 
   return {
     "@context": "https://schema.org",
@@ -555,7 +558,7 @@ function buildMagazineJsonLd(magazine: MagazineLike, title: string, description:
     name: title,
     publisher: buildOrganizationJsonLd(),
     url: toSiteUrl(`/magazine/${magazine.id}`),
-    workExample: pdfUrl,
+    workExample: documentUrl,
   };
 }
 
@@ -571,9 +574,15 @@ function buildMagazineFallbackMarkup(magazine: MagazineLike, title: string, lead
   const readerUrl = getMagazineReaderUrl(magazine);
   const documentUrl = getMagazineDocumentUrl(magazine);
   const canEmbedDocument = canEmbedMagazineDocument(magazine);
+  const isPremium = Boolean(magazine.isPremium);
+  const previewPageCount = Math.max(Number(magazine.previewPageCount || 3), 1);
+  const priceFcfa = Math.max(Number(magazine.priceFcfa || 1000), 0);
   const actionLink = `<a href="${escapeHtml(readerUrl)}" style="display:inline-block;margin-top:24px;background:#b91c1c;color:#ffffff;text-decoration:none;font-weight:700;padding:14px 22px;border-radius:999px;">Lire le magazine sur LE BRIEF</a>`;
-  const downloadLink = documentUrl
+  const downloadLink = documentUrl && !isPremium
     ? `<a href="${escapeHtml(documentUrl)}" style="display:inline-block;margin-top:16px;color:#111827;text-decoration:none;font-weight:700;">Telecharger le PDF</a>`
+    : "";
+  const premiumLine = isPremium
+    ? `<p style="margin:18px 0 0;color:#374151;font-size:15px;line-height:1.7;">Lecture libre sur les ${previewPageCount} premieres pages puis deblocage a ${priceFcfa} FCFA via Wave.</p>`
     : "";
   const readerSection = canEmbedDocument && documentUrl
     ? `<section id="reader" style="margin-top:40px;scroll-margin-top:150px;border:1px solid #e5e7eb;border-radius:24px;overflow:hidden;background:#f8fafc;">
@@ -596,6 +605,7 @@ function buildMagazineFallbackMarkup(magazine: MagazineLike, title: string, lead
             <p style="margin:0;color:#374151;font-size:18px;line-height:1.75;">${escapeHtml(lead)}</p>
             ${actionLink}
             ${downloadLink}
+            ${premiumLine}
             ${publishedLine}
           </div>
         </section>
