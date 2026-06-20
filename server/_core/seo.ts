@@ -576,7 +576,7 @@ function buildMagazineFallbackMarkup(magazine: MagazineLike, title: string, lead
     ? `<a href="${escapeHtml(documentUrl)}" style="display:inline-block;margin-top:16px;color:#111827;text-decoration:none;font-weight:700;">Telecharger le PDF</a>`
     : "";
   const readerSection = canEmbedDocument && documentUrl
-    ? `<section id="reader" style="margin-top:40px;border:1px solid #e5e7eb;border-radius:24px;overflow:hidden;background:#f8fafc;">
+    ? `<section id="reader" style="margin-top:40px;scroll-margin-top:150px;border:1px solid #e5e7eb;border-radius:24px;overflow:hidden;background:#f8fafc;">
         <iframe src="${escapeHtml(`${documentUrl}#toolbar=0&navpanes=0&view=FitH`)}" title="${escapeHtml(title)}" style="display:block;width:100%;height:85vh;min-height:720px;border:0;"></iframe>
       </section>`
     : "";

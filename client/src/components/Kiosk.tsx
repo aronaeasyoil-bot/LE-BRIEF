@@ -1,6 +1,6 @@
 import { useLanguage } from "@/contexts/LanguageContext";
 import { shareLink } from "@/lib/share";
-import { getSiteUrl } from "@/lib/site";
+import { getMagazineSiteUrl } from "@/lib/site";
 import { motion } from "framer-motion";
 import { BookOpen, Share2 } from "lucide-react";
 import { useState } from "react";
@@ -41,6 +41,15 @@ function getMagazineTitle(magazine: any, lang: string) {
       : magazine.titleFr;
 }
 
+function getMagazineHref(magazine: any, options?: { reader?: boolean }) {
+  const magazineId = Number(magazine?.id || 0);
+  if (!Number.isInteger(magazineId) || magazineId <= 0) {
+    return "/";
+  }
+
+  return options?.reader && magazine?.pdfUrl ? `/magazine/${magazineId}#reader` : `/magazine/${magazineId}`;
+}
+
 export default function Kiosk({ magazines }: KioskProps) {
   const { lang } = useLanguage();
   const [visibleArchiveCount, setVisibleArchiveCount] = useState(ARCHIVE_BATCH_SIZE);
@@ -69,7 +78,7 @@ export default function Kiosk({ magazines }: KioskProps) {
     lang === "fr" ? "Masquer les archives" : lang === "ar" ? "اخفاء الأرشيف" : "Hide archive";
 
   const handleShare = async () => {
-    const magazineUrl = getSiteUrl(`/magazine/${latestMagazine.id}`);
+    const magazineUrl = getMagazineSiteUrl(latestMagazine.id, { reader: Boolean(latestMagazine?.pdfUrl) });
     const result = await shareLink("native", {
       title: getMagazineTitle(latestMagazine, lang),
       url: magazineUrl,
@@ -105,7 +114,7 @@ export default function Kiosk({ magazines }: KioskProps) {
           className="grid grid-cols-1 items-center gap-8 md:grid-cols-3"
         >
           <div className="md:col-span-1">
-            <Link href={`/magazine/${latestMagazine.id}`} className="group relative block cursor-pointer">
+            <Link href={getMagazineHref(latestMagazine, { reader: true })} className="group relative block cursor-pointer">
               {latestMagazine.coverImageUrl ? (
                 <img
                   src={latestMagazine.coverImageUrl}
@@ -126,7 +135,7 @@ export default function Kiosk({ magazines }: KioskProps) {
               <p className="mb-2 text-sm font-bold text-gold">
                 {issueLabel} {latestMagazine.issueNumber}
               </p>
-              <Link href={`/magazine/${latestMagazine.id}`}>
+              <Link href={getMagazineHref(latestMagazine, { reader: true })}>
                 <h3 className="mb-3 font-serif text-2xl font-bold text-foreground transition-colors hover:text-gold md:text-3xl">
                   {getMagazineTitle(latestMagazine, lang)}
                 </h3>
@@ -141,7 +150,7 @@ export default function Kiosk({ magazines }: KioskProps) {
 
             <div className="flex flex-col gap-3 sm:flex-row">
               <Link
-                href={`/magazine/${latestMagazine.id}#reader`}
+                href={getMagazineHref(latestMagazine, { reader: true })}
                 className="flex items-center justify-center gap-2 rounded-lg bg-primary px-6 py-3 font-medium text-primary-foreground transition-colors hover:bg-primary/90"
               >
                 <BookOpen className="h-4 w-4" />
@@ -176,7 +185,7 @@ export default function Kiosk({ magazines }: KioskProps) {
                       transition={{ delay: index * 0.05 }}
                       className="group"
                     >
-                      <Link href={`/magazine/${magazine.id}`} className="block space-y-2">
+                      <Link href={getMagazineHref(magazine, { reader: true })} className="block space-y-2">
                         <div className="relative overflow-hidden rounded-lg border border-border transition-colors group-hover:border-gold">
                           {magazine.coverImageUrl ? (
                             <img

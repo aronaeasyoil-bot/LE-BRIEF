@@ -27,6 +27,11 @@ export function getSiteUrl(path = "/") {
   return new URL(path, SITE_URL).toString();
 }
 
+export function getMagazineSiteUrl(magazineId: number, options?: { reader?: boolean }) {
+  const path = options?.reader ? `/magazine/${magazineId}#reader` : `/magazine/${magazineId}`;
+  return getSiteUrl(path);
+}
+
 export function getAbsoluteAssetUrl(path: string) {
   return new URL(path, SITE_URL).toString();
 }

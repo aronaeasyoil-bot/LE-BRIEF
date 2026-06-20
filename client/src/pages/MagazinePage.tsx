@@ -4,7 +4,7 @@ import WhatsAppButton from "@/components/WhatsAppButton";
 import { Button } from "@/components/ui/button";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { usePageMeta } from "@/hooks/usePageMeta";
-import { PREVIEW_IMAGE_URL, SITE_DESCRIPTION, getSiteUrl } from "@/lib/site";
+import { PREVIEW_IMAGE_URL, SITE_DESCRIPTION, getMagazineSiteUrl, getSiteUrl } from "@/lib/site";
 import { shareLink, type SharePlatform } from "@/lib/share";
 import { trpc } from "@/lib/trpc";
 import { motion } from "framer-motion";
@@ -26,6 +26,10 @@ function getMagazineDocumentProxyUrl(magazineId: number) {
   return getSiteUrl(`/api/magazine-file/${magazineId}`);
 }
 
+function getMagazinePageHref(magazineId: number, options?: { reader?: boolean }) {
+  return options?.reader ? `/magazine/${magazineId}#reader` : `/magazine/${magazineId}`;
+}
+
 export default function MagazinePage() {
   const { lang, rtl } = useLanguage();
   const params = useParams<{ id: string }>();
@@ -36,7 +40,7 @@ export default function MagazinePage() {
   );
 
   const magazineTitle = magazine ? getMagazineTitle(magazine, lang) : "Kiosque";
-  const magazineUrl = getSiteUrl(`/magazine/${magazineId}`);
+  const magazineUrl = getMagazineSiteUrl(magazineId, { reader: Boolean(magazine?.pdfUrl) });
   const pageLead = magazine
     ? `${
         lang === "fr"
@@ -183,7 +187,7 @@ export default function MagazinePage() {
                   </a>
                 ) : (
                   <a
-                    href={magazineUrl}
+                    href={getMagazinePageHref(magazineId)}
                     className="inline-flex items-center gap-2 rounded-lg bg-primary px-6 py-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
                   >
                     <BookOpen className="h-4 w-4" />
@@ -239,7 +243,7 @@ export default function MagazinePage() {
               id={MAGAZINE_READER_ID}
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
-              className="mt-12 rounded-3xl border border-border bg-card/70 p-4 shadow-sm md:p-6"
+              className="mt-12 scroll-mt-[150px] rounded-3xl border border-border bg-card/70 p-4 shadow-sm md:p-6"
             >
               <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                 <div>
