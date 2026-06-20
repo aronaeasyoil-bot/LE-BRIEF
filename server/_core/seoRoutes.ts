@@ -1,5 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
+import { Readable } from "node:stream";
 import { fileURLToPath } from "node:url";
 import { getAllCategories, getArticleById, getMagazineById, getMagazines, getPublishedArticles, getPublishedEvents } from "../db";
 import { resolveMagazineDocumentUrl } from "./magazineDocuments";
@@ -269,6 +270,7 @@ export function registerSeoRoutes(app: any) {
 
       const upstream = await fetch(resolvedUrl, {
         headers: {
+          ...(typeof req.headers?.range === "string" ? { Range: req.headers.range } : {}),
           "User-Agent": "LE BRIEF Magazine Proxy",
         },
         redirect: "follow",
@@ -279,15 +281,18 @@ export function registerSeoRoutes(app: any) {
         return;
       }
 
-      const buffer = Buffer.from(await upstream.arrayBuffer());
       const upstreamType = upstream.headers.get("content-type") || "application/pdf";
       const upstreamLength = upstream.headers.get("content-length");
+      const upstreamAcceptRanges = upstream.headers.get("accept-ranges");
+      const upstreamContentRange = upstream.headers.get("content-range");
+      const upstreamEtag = upstream.headers.get("etag");
+      const upstreamLastModified = upstream.headers.get("last-modified");
       const fileName =
         typeof magazine.issueNumber === "number"
           ? `LE-BRIEF-Magazine-${magazine.issueNumber}.pdf`
           : `LE-BRIEF-Magazine-${magazine.id}.pdf`;
 
-      res.status(200);
+      res.status(upstream.status);
       res.setHeader("Cache-Control", NO_CACHE_HEADER);
       res.setHeader("Content-Type", upstreamType.includes("pdf") ? upstreamType : "application/pdf");
       res.setHeader(
@@ -299,7 +304,41 @@ export function registerSeoRoutes(app: any) {
         res.setHeader("Content-Length", upstreamLength);
       }
 
-      res.end(buffer);
+      if (upstreamAcceptRanges) {
+        res.setHeader("Accept-Ranges", upstreamAcceptRanges);
+      }
+
+      if (upstreamContentRange) {
+        res.setHeader("Content-Range", upstreamContentRange);
+      }
+
+      if (upstreamEtag) {
+        res.setHeader("ETag", upstreamEtag);
+      }
+
+      if (upstreamLastModified) {
+        res.setHeader("Last-Modified", upstreamLastModified);
+      }
+
+      if (!upstream.body) {
+        const buffer = Buffer.from(await upstream.arrayBuffer());
+        res.end(buffer);
+        return;
+      }
+
+      const stream = Readable.fromWeb(upstream.body as any);
+      stream.on("error", (error) => {
+        console.error("[SEO] Magazine stream failed:", error);
+        if (!res.headersSent) {
+          res.status(502).end("Unable to stream the magazine file");
+          return;
+        }
+        res.destroy(error as Error);
+      });
+
+      stream.pipe(res);
+      return;
+
     } catch (error) {
       console.error("[SEO] Magazine file proxy failed:", error);
       res.status(500).send("Magazine file proxy failed");

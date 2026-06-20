@@ -2,6 +2,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { getWhatsAppContactUrl } from "@/lib/site";
 import { motion } from "framer-motion";
 import { MessageCircle } from "lucide-react";
+import { useLocation } from "wouter";
 
 const labels = {
   ar: "تواصل معنا على واتساب",
@@ -11,6 +12,11 @@ const labels = {
 
 export default function WhatsAppButton() {
   const { lang, rtl } = useLanguage();
+  const [pathname] = useLocation();
+
+  if (pathname.startsWith("/magazine/")) {
+    return null;
+  }
 
   return (
     <motion.a
