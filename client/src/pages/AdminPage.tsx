@@ -1607,6 +1607,7 @@ function MagazinesTab() {
                 accept=".pdf,application/pdf"
                 bucket="documents"
                 kind="document"
+                optimizePdf
                 value={formData.pdfUrl}
                 onChange={(pdfUrl) => setFormData({ ...formData, pdfUrl })}
               />
