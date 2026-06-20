@@ -25,8 +25,8 @@ function getMagazineTitle(magazine: any, lang: string) {
       : magazine.titleFr;
 }
 
-function getMagazineDocumentProxyUrl(magazineId: number) {
-  return `/api/magazine-file/${magazineId}`;
+function getMagazineDocumentProxyUrl(magazineId: number, accessMode: "full" | "preview") {
+  return `/api/magazine-file/${magazineId}?access=${accessMode}`;
 }
 
 function getMagazinePageHref(magazineId: number, options?: { reader?: boolean }) {
@@ -57,14 +57,15 @@ export default function MagazinePage() {
             : "See the cover and read this issue directly on LE BRIEF."
       }`
     : SITE_DESCRIPTION;
-  const embeddedDocumentUrl = magazine?.pdfUrl ? getMagazineDocumentProxyUrl(magazineId) : "";
   const canEmbedDocument = Boolean(magazine?.pdfUrl);
   const isPremiumMagazine = Boolean(paywallStatus?.isPremium);
   const isUnlocked = Boolean(paywallStatus?.isUnlocked || !paywallStatus?.isPremium);
   const canDownload = Boolean(paywallStatus?.canDownload || !paywallStatus?.isPremium);
   const previewPageCount = paywallStatus?.previewPageCount || 3;
   const priceFcfa = paywallStatus?.priceFcfa || 1000;
-  const viewerModeKey = `${magazineId}-${isUnlocked ? "full" : "preview"}`;
+  const accessMode: "full" | "preview" = isUnlocked ? "full" : "preview";
+  const embeddedDocumentUrl = magazine?.pdfUrl ? getMagazineDocumentProxyUrl(magazineId, accessMode) : "";
+  const downloadUrl = `/api/magazine-file/${magazineId}?download=1`;
 
   useEffect(() => {
     if (!canEmbedDocument || typeof window === "undefined" || window.location.hash !== `#${MAGAZINE_READER_ID}`) {
@@ -239,7 +240,7 @@ export default function MagazinePage() {
                 )}
                 {embeddedDocumentUrl && canDownload ? (
                   <a
-                    href={`${embeddedDocumentUrl}?download=1`}
+                    href={downloadUrl}
                     download
                     className="inline-flex items-center gap-2 rounded-lg border border-border px-6 py-3 text-sm font-medium text-foreground transition-colors hover:bg-secondary"
                   >
@@ -306,7 +307,7 @@ export default function MagazinePage() {
                 </div>
                 {embeddedDocumentUrl && canDownload ? (
                   <a
-                    href={`${embeddedDocumentUrl}?download=1`}
+                    href={downloadUrl}
                     download
                     className="inline-flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-secondary"
                   >
@@ -317,7 +318,6 @@ export default function MagazinePage() {
               </div>
               <div className="overflow-hidden rounded-2xl border border-border bg-background p-2">
                 <MagazineMobilePdfViewer
-                  key={viewerModeKey}
                   lang={lang}
                   lockedAfterPage={isPremiumMagazine && !isUnlocked ? previewPageCount : undefined}
                   paywallCard={
@@ -332,6 +332,7 @@ export default function MagazinePage() {
                     ) : undefined
                   }
                   pdfUrl={embeddedDocumentUrl}
+                  reloadToken={accessMode}
                   title={magazineTitle}
                 />
               </div>

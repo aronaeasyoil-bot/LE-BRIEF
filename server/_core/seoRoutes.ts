@@ -244,6 +244,7 @@ export function registerSeoRoutes(app: any) {
           res.setHeader("Content-Type", "application/pdf");
           res.setHeader("Content-Length", String(previewBuffer.byteLength));
           res.setHeader("Content-Disposition", `inline; filename="${fileName}"`);
+          res.setHeader("Vary", "Cookie, Range");
           res.end(previewBuffer);
           return;
         }
@@ -409,6 +410,7 @@ export function registerSeoRoutes(app: any) {
       res.status(upstream.status);
       res.setHeader("Cache-Control", NO_CACHE_HEADER);
       res.setHeader("Content-Type", upstreamType.includes("pdf") ? upstreamType : "application/pdf");
+      res.setHeader("Vary", "Cookie, Range");
       res.setHeader(
         "Content-Disposition",
         req.query?.download ? `attachment; filename="${fileName}"` : `inline; filename="${fileName}"`,

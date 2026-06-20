@@ -29,6 +29,7 @@ type Props = {
   lockedAfterPage?: number;
   paywallCard?: ReactNode;
   pdfUrl: string;
+  reloadToken?: string;
   title: string;
 };
 
@@ -58,7 +59,14 @@ function getText(lang: string) {
   return textByLanguage[lang as keyof typeof textByLanguage] || textByLanguage.fr;
 }
 
-export default function MagazineMobilePdfViewer({ lang, lockedAfterPage, paywallCard, pdfUrl, title }: Props) {
+export default function MagazineMobilePdfViewer({
+  lang,
+  lockedAfterPage,
+  paywallCard,
+  pdfUrl,
+  reloadToken,
+  title,
+}: Props) {
   const text = getText(lang);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const pageNodesRef = useRef<Record<number, HTMLDivElement | null>>({});
@@ -75,6 +83,10 @@ export default function MagazineMobilePdfViewer({ lang, lockedAfterPage, paywall
   const [pageCount, setPageCount] = useState(0);
   const [pageStates, setPageStates] = useState<Record<number, PageRenderState>>({});
   const [pdfDocument, setPdfDocument] = useState<PdfDocumentHandle | null>(null);
+  const readyPageCount = useMemo(
+    () => Object.values(pageStates).filter((pageState) => pageState.status === "ready" && pageState.src).length,
+    [pageStates],
+  );
 
   const estimatedHeight = useMemo(() => {
     if (!containerWidth) {
@@ -112,14 +124,13 @@ export default function MagazineMobilePdfViewer({ lang, lockedAfterPage, paywall
 
   useEffect(() => {
     let isCancelled = false;
+    const previousPageStates = pageStatesRef.current;
     const nextGeneration = renderGenerationRef.current + 1;
     renderGenerationRef.current = nextGeneration;
     renderQueueRef.current = [];
     queueSetRef.current.clear();
     isRenderingRef.current = false;
     setPdfDocument(null);
-    setPageCount(0);
-    setPageStates({});
     setDocumentError(null);
     setIsDocumentLoading(true);
 
@@ -128,6 +139,9 @@ export default function MagazineMobilePdfViewer({ lang, lockedAfterPage, paywall
         const pdfjs = (await import("pdfjs-dist/legacy/build/pdf.mjs")) as any;
         pdfjs.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
         const task = pdfjs.getDocument({
+          disableAutoFetch: true,
+          disableStream: false,
+          rangeChunkSize: 262144,
           url: pdfUrl,
           useSystemFonts: true,
           withCredentials: false,
@@ -141,9 +155,11 @@ export default function MagazineMobilePdfViewer({ lang, lockedAfterPage, paywall
 
         const initialStates: Record<number, PageRenderState> = {};
         for (let pageNumber = 1; pageNumber <= documentHandle.numPages; pageNumber += 1) {
+          const previous = previousPageStates[pageNumber];
           initialStates[pageNumber] = {
-            height: estimatedHeight,
-            status: "idle",
+            height: previous?.height || estimatedHeight,
+            src: previous?.src,
+            status: previous?.status === "ready" && previous?.src ? "ready" : "idle",
           };
         }
 
@@ -167,7 +183,7 @@ export default function MagazineMobilePdfViewer({ lang, lockedAfterPage, paywall
     return () => {
       isCancelled = true;
     };
-  }, [pdfUrl, text.error]);
+  }, [estimatedHeight, pdfUrl, reloadToken, text.error]);
 
   useEffect(() => {
     return () => {
@@ -321,8 +337,15 @@ export default function MagazineMobilePdfViewer({ lang, lockedAfterPage, paywall
       isRenderingRef.current = false;
     };
 
-    for (let pageNumber = 1; pageNumber <= Math.min(pageCount, PRELOAD_PAGES); pageNumber += 1) {
+    let eagerPageCount = 0;
+    for (let pageNumber = 1; pageNumber <= pageCount && eagerPageCount < PRELOAD_PAGES; pageNumber += 1) {
+      const pageState = pageStatesRef.current[pageNumber];
+      if (pageState?.status === "ready") {
+        continue;
+      }
+
       enqueuePage(pageNumber);
+      eagerPageCount += 1;
     }
 
     if (typeof IntersectionObserver === "undefined") {
@@ -365,10 +388,17 @@ export default function MagazineMobilePdfViewer({ lang, lockedAfterPage, paywall
   return (
     <div ref={containerRef} className="w-full">
       {isDocumentLoading ? (
-        <div className="flex min-h-[320px] items-center justify-center rounded-2xl border border-border bg-background px-6 py-10 text-sm text-muted-foreground">
-          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          {text.loading}
-        </div>
+        readyPageCount > 0 ? (
+          <div className="mb-4 flex items-center rounded-2xl border border-border bg-background px-4 py-3 text-sm text-muted-foreground">
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            {text.loading}
+          </div>
+        ) : (
+          <div className="flex min-h-[320px] items-center justify-center rounded-2xl border border-border bg-background px-6 py-10 text-sm text-muted-foreground">
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            {text.loading}
+          </div>
+        )
       ) : null}
 
       {documentError ? (
