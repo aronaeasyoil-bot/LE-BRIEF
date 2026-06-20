@@ -16,8 +16,9 @@ export const DEFAULT_MAGAZINE_WAVE_NUMBER = "+221 76 300 90 53";
 export const DEFAULT_MAGAZINE_WAVE_QR_PATH = "/media/wave-magazine-pay-qr.jpg";
 
 type MagazineAccessCookiePayload = {
-  grantedMagazineIds: number[];
+  approvedMagazineIds: number[];
   issuedAt: number;
+  temporaryMagazineIds: number[];
   version: number;
 };
 
@@ -62,10 +63,15 @@ function decodeMagazineAccessCookieValue(value: string): MagazineAccessCookiePay
   }
 
   try {
-    const parsed = JSON.parse(Buffer.from(payloadBase64, "base64url").toString("utf8")) as MagazineAccessCookiePayload;
+    const parsed = JSON.parse(Buffer.from(payloadBase64, "base64url").toString("utf8")) as MagazineAccessCookiePayload & {
+      grantedMagazineIds?: number[];
+    };
+    const approvedMagazineIds = normalizeMagazineIds(parsed.approvedMagazineIds || parsed.grantedMagazineIds || []);
+    const temporaryMagazineIds = normalizeMagazineIds(parsed.temporaryMagazineIds || []);
     return {
-      grantedMagazineIds: normalizeMagazineIds(parsed.grantedMagazineIds || []),
+      approvedMagazineIds,
       issuedAt: Number(parsed.issuedAt || Date.now()),
+      temporaryMagazineIds,
       version: Number(parsed.version || MAGAZINE_ACCESS_COOKIE_VERSION),
     };
   } catch {
@@ -78,15 +84,35 @@ function readCookieHeader(req: any) {
   return typeof header === "string" ? header : "";
 }
 
-export function readGrantedMagazineIdsFromRequest(req: any) {
+function readMagazineAccessPayloadFromRequest(req: any): MagazineAccessCookiePayload {
   const cookies = parseCookie(readCookieHeader(req) || "");
   const cookieValue = cookies[MAGAZINE_ACCESS_COOKIE_NAME];
   if (!cookieValue) {
-    return [];
+    return {
+      approvedMagazineIds: [],
+      issuedAt: Date.now(),
+      temporaryMagazineIds: [],
+      version: MAGAZINE_ACCESS_COOKIE_VERSION,
+    };
   }
 
   const decoded = decodeMagazineAccessCookieValue(cookieValue);
-  return decoded?.grantedMagazineIds || [];
+  return (
+    decoded || {
+      approvedMagazineIds: [],
+      issuedAt: Date.now(),
+      temporaryMagazineIds: [],
+      version: MAGAZINE_ACCESS_COOKIE_VERSION,
+    }
+  );
+}
+
+export function readGrantedMagazineIdsFromRequest(req: any) {
+  return readMagazineAccessPayloadFromRequest(req).approvedMagazineIds;
+}
+
+export function readTemporaryMagazineIdsFromRequest(req: any) {
+  return readMagazineAccessPayloadFromRequest(req).temporaryMagazineIds;
 }
 
 export function hasUnlockedMagazineAccess(
@@ -104,21 +130,62 @@ export function hasUnlockedMagazineAccess(
     return true;
   }
 
+  const magazineId = Number(magazine.id);
+  return (
+    readGrantedMagazineIdsFromRequest(req).includes(magazineId) ||
+    readTemporaryMagazineIdsFromRequest(req).includes(magazineId)
+  );
+}
+
+export function hasApprovedMagazineAccess(
+  req: any,
+  magazine: {
+    id: number;
+    isPremium?: boolean | null;
+  } | null | undefined,
+) {
+  if (!magazine) {
+    return false;
+  }
+
+  if (!magazine.isPremium) {
+    return true;
+  }
+
   return readGrantedMagazineIdsFromRequest(req).includes(Number(magazine.id));
 }
 
-export function grantMagazineAccess(req: any, res: any, magazineId: number) {
-  const grantedIds = normalizeMagazineIds([...readGrantedMagazineIdsFromRequest(req), magazineId]);
+export function grantMagazineAccess(
+  req: any,
+  res: any,
+  magazineId: number,
+  options?: {
+    maxAgeMs?: number;
+    temporary?: boolean;
+  },
+) {
+  const currentAccess = readMagazineAccessPayloadFromRequest(req);
+  const approvedMagazineIds = options?.temporary
+    ? currentAccess.approvedMagazineIds
+    : normalizeMagazineIds([...currentAccess.approvedMagazineIds, magazineId]);
+  const temporaryMagazineIds = options?.temporary
+    ? normalizeMagazineIds([...currentAccess.temporaryMagazineIds, magazineId])
+    : currentAccess.temporaryMagazineIds.filter((value) => value !== magazineId);
   const nextValue = encodeMagazineAccessCookieValue({
-    grantedMagazineIds: grantedIds,
+    approvedMagazineIds,
     issuedAt: Date.now(),
+    temporaryMagazineIds,
     version: MAGAZINE_ACCESS_COOKIE_VERSION,
   });
 
   const cookieOptions = getSessionCookieOptions(req);
   res.cookie(MAGAZINE_ACCESS_COOKIE_NAME, nextValue, {
     ...cookieOptions,
-    maxAge: ONE_YEAR_MS,
+    ...(typeof options?.maxAgeMs === "number"
+      ? { maxAge: options.maxAgeMs }
+      : options?.temporary
+        ? {}
+        : { maxAge: ONE_YEAR_MS }),
   });
 }
 

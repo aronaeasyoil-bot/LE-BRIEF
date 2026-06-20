@@ -11,7 +11,12 @@ import {
   getPublishedArticles,
   getPublishedEvents,
 } from "../db";
-import { buildPreviewPdfBuffer, grantMagazineAccess, hasUnlockedMagazineAccess } from "./magazinePaywall";
+import {
+  buildPreviewPdfBuffer,
+  grantMagazineAccess,
+  hasApprovedMagazineAccess,
+  hasUnlockedMagazineAccess,
+} from "./magazinePaywall";
 import { resolveMagazineDocumentUrl } from "./magazineDocuments";
 import {
   buildNewsSitemapXml,
@@ -200,7 +205,8 @@ export function registerSeoRoutes(app: any) {
         }
 
         const unlocked = hasUnlockedMagazineAccess(req, magazine);
-        if (req.query?.download && magazine.isPremium && !unlocked) {
+        const approved = hasApprovedMagazineAccess(req, magazine);
+        if (req.query?.download && magazine.isPremium && !approved) {
           res.status(403).send("Magazine download is locked until payment validation.");
           return;
         }
@@ -333,7 +339,8 @@ export function registerSeoRoutes(app: any) {
       }
 
       const unlocked = hasUnlockedMagazineAccess(req, magazine);
-      if (req.query?.download && magazine.isPremium && !unlocked) {
+      const approved = hasApprovedMagazineAccess(req, magazine);
+      if (req.query?.download && magazine.isPremium && !approved) {
         res.status(403).send("Magazine download is locked until payment validation.");
         return;
       }

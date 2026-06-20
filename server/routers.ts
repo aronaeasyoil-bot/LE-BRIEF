@@ -6,7 +6,9 @@ import {
   buildMagazineAccessUrl,
   createMagazinePaymentAccessToken,
   getMagazinePaywallPublicConfig,
+  hasApprovedMagazineAccess,
   hasUnlockedMagazineAccess,
+  grantMagazineAccess,
   sendMagazineAccessEmail,
 } from "./_core/magazinePaywall";
 import { getPublicMarketPrices } from "./_core/marketPrices";
@@ -641,6 +643,7 @@ export const appRouter = router({
 
         const paywall = getMagazinePaywallPublicConfig(magazine);
         return {
+          canDownload: hasApprovedMagazineAccess(ctx.req, magazine),
           ...paywall,
           isUnlocked: hasUnlockedMagazineAccess(ctx.req, magazine),
         };
@@ -660,7 +663,7 @@ export const appRouter = router({
           }),
         }),
       )
-      .mutation(async ({ input }) => {
+      .mutation(async ({ ctx, input }) => {
         const magazine = await getMagazineById(input.magazineId);
         if (!magazine) {
           throw new TRPCError({ code: "NOT_FOUND", message: "Magazine not found" });
@@ -686,8 +689,14 @@ export const appRouter = router({
           whatsappNumber: normalizeOptionalText(input.whatsappNumber),
         });
 
+        grantMagazineAccess(ctx.req, ctx.res, magazine.id, {
+          maxAgeMs: 12 * 60 * 60 * 1000,
+          temporary: true,
+        });
+
         return {
           id: requestId,
+          temporarilyUnlocked: true,
           success: true,
         };
       }),

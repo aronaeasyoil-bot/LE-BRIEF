@@ -61,8 +61,10 @@ export default function MagazinePage() {
   const canEmbedDocument = Boolean(magazine?.pdfUrl);
   const isPremiumMagazine = Boolean(paywallStatus?.isPremium);
   const isUnlocked = Boolean(paywallStatus?.isUnlocked || !paywallStatus?.isPremium);
+  const canDownload = Boolean(paywallStatus?.canDownload || !paywallStatus?.isPremium);
   const previewPageCount = paywallStatus?.previewPageCount || 3;
   const priceFcfa = paywallStatus?.priceFcfa || 1000;
+  const viewerModeKey = `${magazineId}-${isUnlocked ? "full" : "preview"}`;
 
   useEffect(() => {
     if (!canEmbedDocument || typeof window === "undefined" || window.location.hash !== `#${MAGAZINE_READER_ID}`) {
@@ -235,7 +237,7 @@ export default function MagazinePage() {
                     {readLabel}
                   </a>
                 )}
-                {embeddedDocumentUrl && isUnlocked ? (
+                {embeddedDocumentUrl && canDownload ? (
                   <a
                     href={`${embeddedDocumentUrl}?download=1`}
                     download
@@ -302,7 +304,7 @@ export default function MagazinePage() {
                   </p>
                   <h2 className="mt-2 text-2xl font-semibold text-foreground">{magazineTitle}</h2>
                 </div>
-                {embeddedDocumentUrl && isUnlocked ? (
+                {embeddedDocumentUrl && canDownload ? (
                   <a
                     href={`${embeddedDocumentUrl}?download=1`}
                     download
@@ -315,6 +317,7 @@ export default function MagazinePage() {
               </div>
               <div className="overflow-hidden rounded-2xl border border-border bg-background p-2">
                 <MagazineMobilePdfViewer
+                  key={viewerModeKey}
                   lang={lang}
                   lockedAfterPage={isPremiumMagazine && !isUnlocked ? previewPageCount : undefined}
                   paywallCard={

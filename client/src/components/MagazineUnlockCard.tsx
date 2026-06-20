@@ -22,58 +22,58 @@ type Props = {
 
 const cardText = {
   ar: {
-    accepted: "تم إرسال طلبك. ستتلقى رابط فتح المجلة بعد التحقق من الدفع.",
-    button: "ارسال اثبات الدفع",
+    accepted: "تم إرسال طلبك. سيتم فتح بقية الصفحات الآن في هذا المتصفح.",
+    button: "إرسال إثبات الدفع",
     email: "البريد الإلكتروني",
     file: "إثبات الدفع",
-    helper: "بعد الصفحة الثالثة، يتم فتح بقية المجلة بعد دفع 1000 FCFA عبر Wave ثم التحقق اليدوي.",
+    helper: "بعد الصفحة الثالثة، تُفتح بقية المجلة مباشرة بعد إرسال إثبات الدفع. التنزيل الدائم يبقى بعد مراجعة الإدارة.",
     name: "الاسم الكامل",
     phone: "رقم واتساب",
     price: "سعر فتح المجلة",
     stepsTitle: "خطوات سريعة",
     step1: "امسح رمز QR أو ادفع مباشرة على رقم Wave أدناه.",
     step2: "التقط صورة أو لقطة شاشة لإثبات الدفع.",
-    step3: "أرسل البيانات لتلقي رابط الفتح عبر البريد الإلكتروني.",
-    subtitle: "اقرأ العدد الكامل بعد التحقق من الدفع.",
-    title: "فتح المجلة الكاملة",
+    step3: "أرسل بياناتك لفتح بقية الصفحات مباشرة في هذا المتصفح.",
+    subtitle: "اقرأ بقية العدد بعد إرسال إثبات الدفع.",
+    title: "فتح بقية المجلة",
     uploadPlaceholder: "أضف لقطة شاشة أو صورة لإثبات الدفع",
     waveNumber: "رقم Wave",
   },
   en: {
-    accepted: "Your request has been sent. You will receive the unlock link after payment validation.",
+    accepted: "Your request has been sent. The remaining pages will now open in this browser.",
     button: "Send payment proof",
     email: "Email address",
     file: "Payment proof",
-    helper: "After page three, the rest of the magazine is unlocked after a 1000 FCFA Wave payment and manual validation.",
+    helper: "After page three, the rest of the magazine opens immediately once payment proof is submitted. Permanent download still stays under admin review.",
     name: "Full name",
     phone: "WhatsApp number",
     price: "Unlock price",
     stepsTitle: "Quick steps",
     step1: "Scan the QR code or pay directly to the Wave number below.",
     step2: "Take a screenshot or photo of the payment proof.",
-    step3: "Send your details to receive the unlock link by email.",
-    subtitle: "Read the full issue after payment validation.",
-    title: "Unlock the full magazine",
+    step3: "Send your details to open the remaining pages immediately in this browser.",
+    subtitle: "Read the rest of the issue after sending payment proof.",
+    title: "Unlock the remaining pages",
     uploadPlaceholder: "Add a screenshot or photo of the payment proof",
     waveNumber: "Wave number",
   },
   fr: {
-    accepted: "Votre demande a été envoyée. Vous recevrez le lien de déblocage après validation du paiement.",
+    accepted: "Votre demande a ete envoyee. Le reste des pages va maintenant s'ouvrir dans ce navigateur.",
     button: "Envoyer la preuve de paiement",
     email: "Adresse email",
     file: "Preuve de paiement",
-    helper: "Après la troisième page, le reste du magazine se débloque après un paiement Wave de 1000 FCFA puis une validation manuelle.",
+    helper: "Apres la troisieme page, le reste du magazine s'ouvre des que la preuve de paiement est envoyee. Le telechargement permanent reste ensuite soumis a votre validation admin.",
     name: "Nom complet",
-    phone: "Numéro WhatsApp",
-    price: "Prix du déblocage",
-    stepsTitle: "Étapes rapides",
-    step1: "Scannez le QR code ou payez directement sur le numéro Wave ci-dessous.",
-    step2: "Prenez une capture d'écran ou une photo de la preuve de paiement.",
-    step3: "Envoyez vos informations pour recevoir le lien de déblocage par email.",
-    subtitle: "Lisez l'intégralité du numéro après validation du paiement.",
-    title: "Débloquer le magazine complet",
-    uploadPlaceholder: "Ajoutez une capture d'écran ou une photo de votre preuve",
-    waveNumber: "Numéro Wave",
+    phone: "Numero WhatsApp",
+    price: "Prix du deblocage",
+    stepsTitle: "Etapes rapides",
+    step1: "Scannez le QR code ou payez directement sur le numero Wave ci-dessous.",
+    step2: "Prenez une capture d'ecran ou une photo de la preuve de paiement.",
+    step3: "Envoyez vos informations pour ouvrir tout de suite le reste des pages dans ce navigateur.",
+    subtitle: "Lisez la suite du numero apres envoi de la preuve de paiement.",
+    title: "Debloquer le reste du magazine",
+    uploadPlaceholder: "Ajoutez une capture d'ecran ou une photo de votre preuve",
+    waveNumber: "Numero Wave",
   },
 } as const;
 
@@ -102,22 +102,24 @@ export default function MagazineUnlockCard({
 }: Props) {
   const { lang } = useLanguage();
   const text = cardText[lang as keyof typeof cardText] || cardText.fr;
-  const requestMutation = trpc.magazinePayments.requestAccess.useMutation({
-    onSuccess: () => {
-      setSubmitted(true);
-      toast.success(text.accepted);
-    },
-    onError: (error) => {
-      toast.error(error.message);
-    },
-  });
-
+  const utils = trpc.useUtils();
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [whatsappNumber, setWhatsappNumber] = useState("");
   const [proof, setProof] = useState<ProofPayload | null>(null);
   const [proofName, setProofName] = useState("");
   const [submitted, setSubmitted] = useState(false);
+
+  const requestMutation = trpc.magazinePayments.requestAccess.useMutation({
+    onSuccess: async () => {
+      setSubmitted(true);
+      await utils.magazinePayments.status.invalidate({ magazineId });
+      toast.success(text.accepted);
+    },
+    onError: (error) => {
+      toast.error(error.message);
+    },
+  });
 
   const formattedPrice = useMemo(() => {
     return new Intl.NumberFormat(lang === "en" ? "en-US" : "fr-FR").format(priceFcfa);
@@ -132,7 +134,9 @@ export default function MagazineUnlockCard({
     }
 
     if (!file.type.startsWith("image/")) {
-      toast.error(lang === "fr" ? "Ajoutez une image de preuve." : lang === "ar" ? "أضف صورة لإثبات الدفع." : "Upload an image proof.");
+      toast.error(
+        lang === "fr" ? "Ajoutez une image de preuve." : lang === "ar" ? "أضف صورة لإثبات الدفع." : "Upload an image proof.",
+      );
       return;
     }
 
@@ -144,7 +148,9 @@ export default function MagazineUnlockCard({
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!proof) {
-      toast.error(lang === "fr" ? "Ajoutez la preuve de paiement." : lang === "ar" ? "أضف إثبات الدفع." : "Add the payment proof.");
+      toast.error(
+        lang === "fr" ? "Ajoutez la preuve de paiement." : lang === "ar" ? "أضف إثبات الدفع." : "Add the payment proof.",
+      );
       return;
     }
 
@@ -180,10 +186,10 @@ export default function MagazineUnlockCard({
           </div>
           <p className="text-muted-foreground">
             {lang === "fr"
-              ? "Le déblocage n'est pas automatique : un administrateur valide votre paiement puis vous envoie un lien sécurisé."
+              ? "Le magazine s'ouvre maintenant dans ce navigateur. Le telechargement permanent reste ensuite soumis a votre validation admin."
               : lang === "ar"
-                ? "الفتح ليس آلياً: يقوم المسؤول بالتحقق من الدفع ثم يرسل لك رابطاً آمناً."
-                : "Unlocking is not automatic: an administrator validates your payment and then sends you a secure link."}
+                ? "ستُفتح المجلة الآن في هذا المتصفح. أما التنزيل الدائم فيبقى بعد ذلك خاضعًا لموافقة الإدارة."
+                : "The magazine now opens in this browser. Permanent download still remains subject to admin validation."}
           </p>
         </div>
       ) : (
