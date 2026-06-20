@@ -9,6 +9,7 @@ import { shareLink, type SharePlatform } from "@/lib/share";
 import { trpc } from "@/lib/trpc";
 import { motion } from "framer-motion";
 import { ArrowLeft, BookOpen, Copy, Download, MessageCircle, Share2 } from "lucide-react";
+import { useEffect } from "react";
 import { toast } from "sonner";
 import { Link, useParams } from "wouter";
 
@@ -52,6 +53,26 @@ export default function MagazinePage() {
     : SITE_DESCRIPTION;
   const embeddedDocumentUrl = magazine?.pdfUrl ? getMagazineDocumentProxyUrl(magazineId) : "";
   const canEmbedDocument = Boolean(magazine?.pdfUrl);
+
+  useEffect(() => {
+    if (!canEmbedDocument || typeof window === "undefined" || window.location.hash !== `#${MAGAZINE_READER_ID}`) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      const readerSection = document.getElementById(MAGAZINE_READER_ID);
+      if (!readerSection) {
+        return;
+      }
+
+      const top = readerSection.getBoundingClientRect().top + window.scrollY - 150;
+      window.scrollTo({
+        top: Math.max(top, 0),
+      });
+    }, 180);
+
+    return () => window.clearTimeout(timer);
+  }, [canEmbedDocument, magazineId]);
 
   usePageMeta({
     appendSiteName: false,
