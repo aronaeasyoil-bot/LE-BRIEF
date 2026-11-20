@@ -24,6 +24,11 @@ app.use(
   createExpressMiddleware({
     router: appRouter,
     createContext,
+    onError({ path, error }) {
+      if (error.code === "INTERNAL_SERVER_ERROR") {
+        console.error(`[tRPC] ${path ?? "unknown"} failed:`, error.cause ?? error);
+      }
+    },
   }),
 );
 
