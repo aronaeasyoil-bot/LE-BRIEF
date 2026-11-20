@@ -38,19 +38,22 @@ const ARTICLE_BATCH_SIZE = 35;
 
 const dailyEditionLiveContent = {
   fr: {
-    headline: "EN DIRECT - Moyen-Orient: des pétroliers iraniens ont franchi la zone du blocus américain",
+    headline:
+      "À LA UNE - Sénégal - Mauritanie : BP envisagerait de céder sa participation de 56 % et son rôle d'opérateur dans le projet gazier GTA",
     summary:
-      "L'armée iranienne menace d'une réponse sévère après les attaques israéliennes du mardi 16 juin sur le Liban. En parallèle, un protocole d'accord entre l'Iran et les États-Unis, signé à distance le lundi 15 juin et attendu vendredi en Suisse pour officialisation, ouvre une phase de négociation. Plusieurs éléments du texte ont commencé à circuler, tandis que la levée du blocus américain sur les ports iraniens permet déjà à des pétroliers iraniens de franchir la zone.",
+      "Selon des informations de LE BRIEF, le groupe britannique étudierait la cession de sa participation dans Grand Tortue Ahmeyim afin de réduire son endettement, tout en conservant la commercialisation des cargaisons de GNL. Également dans l'édition du vendredi 20 novembre : terres rares au Kenya, budget rectificatif au Sénégal, SIREXE Invest en Côte d'Ivoire, forage d'Akpo au Nigeria, centrale à gaz à Douala et exploration offshore en Libye.",
   },
   en: {
-    headline: "LIVE - Middle East: Iranian tankers have crossed the US blockade zone",
+    headline:
+      "TOP STORY - Senegal - Mauritania: BP reportedly considering selling its 56% stake and operatorship in the GTA gas project",
     summary:
-      "Iran's military is threatening a severe response after the Israeli attacks of Tuesday, June 16 on Lebanon. At the same time, a memorandum of understanding between Iran and the United States, signed remotely on Monday, June 15 and due to be formalized in Switzerland on Friday, has opened a new negotiation phase. Parts of the text are beginning to circulate, while the lifting of the US blockade on Iranian ports has already allowed Iranian tankers to cross the area.",
+      "According to LE BRIEF, the British group is studying the sale of its stake in Greater Tortue Ahmeyim to reduce debt, while keeping the marketing rights to the LNG cargoes. Also in the Friday, November 20 edition: rare earths in Kenya, Senegal's amended budget, SIREXE Invest in Côte d'Ivoire, Akpo drilling in Nigeria, a gas-fired plant in Douala and offshore exploration in Libya.",
   },
   ar: {
-    headline: "مباشر - الشرق الأوسط: ناقلات إيرانية عبرت منطقة الحصار الأميركي",
+    headline:
+      "أبرز الأخبار - السنغال وموريتانيا: بي بي تدرس التخلي عن حصتها البالغة 56% ودور المشغل في مشروع الغاز GTA",
     summary:
-      "تهدد القوات الإيرانية برد شديد بعد الهجمات الإسرائيلية يوم الثلاثاء 16 يونيو على لبنان. وفي الوقت نفسه، فتح بروتوكول تفاهم بين إيران والولايات المتحدة، وُقع عن بعد يوم الاثنين 15 يونيو ومن المنتظر إضفاء الطابع الرسمي عليه يوم الجمعة في سويسرا، مرحلة جديدة من التفاوض. وقد بدأت بعض بنود النص بالتداول، بينما سمح رفع الحصار الأميركي على الموانئ الإيرانية لناقلات إيرانية بعبور المنطقة بالفعل.",
+      "وفق معلومات LE BRIEF، تدرس المجموعة البريطانية بيع حصتها في مشروع السلحفاة الكبرى أحميم لخفض مديونيتها، مع الاحتفاظ بحقوق تسويق شحنات الغاز الطبيعي المسال. وفي عدد الجمعة 20 نوفمبر أيضاً: المعادن النادرة في كينيا، الميزانية المعدلة في السنغال، منصة SIREXE Invest في كوت ديفوار، حفر أكبو في نيجيريا، محطة غاز في دوالا والاستكشاف البحري في ليبيا.",
   },
 } as const;
 

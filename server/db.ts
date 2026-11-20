@@ -27,6 +27,7 @@ import type {
   InsertSubscriber,
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
+import { EDITORIAL_EDITION_ARTICLES } from './editorialEditions';
 
 // Re-export for use in routers
 export { advertisements, magazines };
@@ -34,6 +35,7 @@ export { advertisements, magazines };
 let _db: ReturnType<typeof drizzle> | null = null;
 let _coreCategoriesSeeded = false;
 let _marketPricesSeeded = false;
+let _editorialEditionsSeeded: Promise<void> | null = null;
 
 const CORE_CATEGORIES: InsertCategory[] = [
   { slug: "energie", nameFr: "Énergie", nameEn: "Energy", nameAr: "الطاقة", icon: "Zap", sortOrder: 10 },
@@ -201,9 +203,71 @@ export async function getAllCategories() {
 
 // ========== ARTICLES ==========
 
+/**
+ * Insère (une seule fois) les articles des éditions quotidiennes rédigées par
+ * la rédaction et déclarés dans server/editorialEditions.ts.
+ */
+export async function ensureEditorialEditionArticles() {
+  if (!_editorialEditionsSeeded) {
+    _editorialEditionsSeeded = seedEditorialEditionArticles().catch((error) => {
+      console.warn("[Database] Failed to seed editorial edition articles:", error);
+      _editorialEditionsSeeded = null;
+    });
+  }
+  return _editorialEditionsSeeded;
+}
+
+async function seedEditorialEditionArticles() {
+  const db = await getDb();
+  if (!db || EDITORIAL_EDITION_ARTICLES.length === 0) return;
+
+  const titles = EDITORIAL_EDITION_ARTICLES.map((item) => item.titleFr);
+  const existing = await db
+    .select({ titleFr: articles.titleFr })
+    .from(articles)
+    .where(inArray(articles.titleFr, titles));
+  const existingTitles = new Set(existing.map((row) => row.titleFr));
+  const missing = EDITORIAL_EDITION_ARTICLES.filter((item) => !existingTitles.has(item.titleFr));
+  if (missing.length === 0) return;
+
+  const categoryRows = await getAllCategories();
+  const categoryIdBySlug = new Map(categoryRows.map((category) => [category.slug, category.id]));
+
+  const rows: InsertArticle[] = [];
+  for (const item of missing) {
+    const categoryId = categoryIdBySlug.get(item.categorySlug);
+    if (!categoryId) {
+      console.warn(`[Database] Unknown category "${item.categorySlug}" for edition article "${item.titleFr}"`);
+      continue;
+    }
+    rows.push({
+      titleFr: item.titleFr,
+      excerptFr: item.excerptFr,
+      contentFr: item.contentFr,
+      categoryId,
+      imageUrl: item.imageUrl,
+      authorName: "La rédaction LE BRIEF",
+      sourceName: item.sourceName,
+      sourceUrl: item.sourceUrl ?? null,
+      tags: item.tags,
+      metaDescription: item.metaDescription,
+      featured: item.featured,
+      published: true,
+      language: "fr",
+      publishedAt: item.publishedAt,
+    });
+  }
+
+  if (rows.length > 0) {
+    await db.insert(articles).values(rows);
+    console.log(`[Database] Published ${rows.length} editorial edition article(s)`);
+  }
+}
+
 export async function getPublishedArticles(limit = 1000, offset = 0) {
   const db = await getDb();
   if (!db) return [];
+  await ensureEditorialEditionArticles();
   return db.select().from(articles)
     .where(eq(articles.published, true))
     .orderBy(desc(articles.publishedAt))
@@ -214,6 +278,7 @@ export async function getPublishedArticles(limit = 1000, offset = 0) {
 export async function getFeaturedArticles(limit = 5) {
   const db = await getDb();
   if (!db) return [];
+  await ensureEditorialEditionArticles();
   return db.select().from(articles)
     .where(and(eq(articles.published, true), eq(articles.featured, true)))
     .orderBy(desc(articles.publishedAt))
@@ -223,6 +288,7 @@ export async function getFeaturedArticles(limit = 5) {
 export async function getArticlesByCategory(categoryId: number, limit = 20) {
   const db = await getDb();
   if (!db) return [];
+  await ensureEditorialEditionArticles();
   return db.select().from(articles)
     .where(and(eq(articles.published, true), eq(articles.categoryId, categoryId)))
     .orderBy(desc(articles.publishedAt))
