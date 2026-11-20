@@ -115,6 +115,3 @@ verification-screenshots/
 client/public/__manus__/version.json
 
 .vercel
-
-# Netlify
-.netlify
