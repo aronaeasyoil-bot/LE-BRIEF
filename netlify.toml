@@ -1,0 +1,18 @@
+[build]
+  command = "pnpm build"
+  publish = "dist/public"
+  functions = "netlify/functions"
+
+[build.environment]
+  NODE_VERSION = "24"
+
+[functions]
+  node_bundler = "esbuild"
+  # Template HTML read at runtime by the article/magazine SEO renderer.
+  included_files = ["dist/public/index.html"]
+
+# SPA fallback (static files and the api function paths take precedence).
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
