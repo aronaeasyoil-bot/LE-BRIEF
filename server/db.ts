@@ -1,5 +1,6 @@
 import { eq, asc, desc, and, inArray, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
+import mysql from "mysql2";
 import {
   InsertUser,
   users,
@@ -98,10 +99,37 @@ export const DEFAULT_MARKET_PRICES: InsertMarketPrice[] = [
   },
 ];
 
+/**
+ * mysql2 interprets a URL `ssl` parameter as a named SSL profile. Hosted
+ * providers (e.g. TiDB Cloud) give `?ssl={"rejectUnauthorized":true}`, so
+ * extract it and pass it as an SSL options object instead.
+ */
+export function parseDatabaseUrl(databaseUrl: string) {
+  const url = new URL(databaseUrl.trim());
+  const rawSsl = url.searchParams.get("ssl");
+  url.searchParams.delete("ssl");
+  let ssl: Record<string, unknown> | undefined;
+  if (rawSsl !== null) {
+    const cleaned = rawSsl.replace(/\\/g, "").trim();
+    try {
+      const parsed = JSON.parse(cleaned);
+      ssl = parsed && typeof parsed === "object" ? parsed : { rejectUnauthorized: true };
+    } catch {
+      ssl = cleaned === "false" ? undefined : { rejectUnauthorized: true };
+    }
+  }
+  return { uri: url.toString(), ssl };
+}
+
+function createMysqlPool(databaseUrl: string) {
+  const { uri, ssl } = parseDatabaseUrl(databaseUrl);
+  return mysql.createPool({ uri, ...(ssl ? { ssl } : {}) });
+}
+
 export async function getDb() {
   if (!_db && process.env.DATABASE_URL) {
     try {
-      _db = drizzle(process.env.DATABASE_URL);
+      _db = drizzle(createMysqlPool(process.env.DATABASE_URL));
     } catch (error) {
       console.warn("[Database] Failed to connect:", error);
       _db = null;
